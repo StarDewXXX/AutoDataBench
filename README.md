@@ -219,24 +219,6 @@ The agent gets a web search tool inside its container as `adb-search`, capped at
 `researcher.search_script` points at a reference implementation; swap it for any
 executable honouring the contract in that file's header.
 
-## Two decisions the harness makes, not a model
-
-**A verdict that does not match the schema is an error, not a low score.**
-`run_score.validate_verdict()` checks the judge's output before any arithmetic runs.
-Drift fails the episode loudly and it is re-judged. The reason is experience: silent
-fallbacks used to absorb a renamed key and turn it into a plausible number, always
-downwards. One verdict wrote `mode_id` instead of `id` for all five modes and was
-recorded as quality 0.0 when the judge had marked every mode present. No aliases are
-accepted, because accepting two would hide the next three.
-
-**The surface-swap gate has a bright line the judge does not get to weigh.** Before
-the judge starts, the harness writes a mechanical word-level diff of the two
-`instruction.md` files and mounts it; the similarity and span count also land in
-`score.json`. If every differing span is a renaming, the gate fires and no amount of
-same-family reasoning overrides it. This exists because the softer wording was
-reasoned around: a delivery differing from the original in ten spans, every one a
-rename, was cleared as "the same family, materially different thing to work out".
-
 ## Licence
 
 Apache-2.0; see [LICENSE](LICENSE). `benchmarks/` is third-party material under its
