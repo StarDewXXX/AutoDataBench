@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# adb-testrun <task-dir>
+#
+# Run one of the tasks you are authoring with the TRAINEE model, exactly the way
+# the official difficulty check will later run it: the configured trainee harness
+# (ADB_TRAINEE_AGENT) driving the one permitted model, then the task's own
+# verifier grades the attempt. This DOES
+# spend API budget and DOES count against your session cost, so use it to measure
+# how hard a task is for the trainee -- not as a general scratchpad.
+#
+# HARD RULE: the only model this (or you) may ever call is ADB_ALLOWED_MODEL.
+# This wrapper pins it. Do not call the trainee, or any other model, by any other
+# route. Attempts to run a different model are detectable in the trajectory and
+# void the whole submission.
+set -euo pipefail
+
+# The real harbor, which this wrapper shadows on PATH. Point HARBOR_REAL at your
+# own install; falling back to whatever `harbor` resolves to would re-enter this
+# wrapper and loop.
+HARBOR_REAL="${HARBOR_REAL:?HARBOR_REAL is unset -- set it to the absolute path of the real harbor binary}"
+
+task="${1:?usage: adb-testrun <task-dir>}"
+task="$(readlink -f "$task")"
+case "$task" in
+  "$ADB_WORK"/*) : ;;
+  *) echo "adb-testrun: task must live under $ADB_WORK (host-aligned; required for docker)" >&2; exit 2 ;;
+esac
+
+: "${ADB_ALLOWED_MODEL:?ADB_ALLOWED_MODEL not set}"
+: "${ANTHROPIC_BASE_URL:?ANTHROPIC_BASE_URL not set}"
+: "${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY not set}"
+
+ts=$(date +%Y%m%d-%H%M%S-%N)
+out="$ADB_TESTRUN_OUT/trainee-$ts"
+mkdir -p "$out"
+
+# Respect the shared docker concurrency cap (ADB_MAX_CONCURRENT slots).
+source "$(dirname "$0")/_adb_slots.sh"
+AutoDataBench_acquire_slot
+
+# Mirror the official trainee harness (ADB_TRAINEE_AGENT). The gateway URL + key
+# are the same for both protocols; only the model-name form and the agent creds
+# change. The verifier always reaches the gateway over the anthropic protocol.
+#   claude-code           -> anthropic protocol, model as-is, ANTHROPIC_* creds
+#   codex / mini-swe-agent -> openai protocol: drop 'anthropic-', route via
+#                            'openai/' (mini-swe-agent requires a provider/
+#                            prefix), OPENAI_* creds
+TRAINEE_AGENT="${ADB_TRAINEE_AGENT:-claude-code}"
+
+# Pin the claude-code release the same way the host harness does. harbor installs
+# it per container from bootstrap.sh with no version, so an unpinned run takes
+# whatever is latest at that minute -- and a bad release (2.1.265) installed
+# without putting `claude` on PATH, killing every run started after it appeared.
+ak_flags=()
+if [[ "$TRAINEE_AGENT" == "claude-code" && -n "${ADB_CC_VERSION:-}" ]]; then
+  ak_flags=(--ak "version=$ADB_CC_VERSION")
+fi
+model="$ADB_ALLOWED_MODEL"
+cred_flags=()
+case "$TRAINEE_AGENT" in
+  codex|mini-swe-agent)
+    bare="${model##*/}"        # strip any provider/ prefix
+    bare="${bare#anthropic-}"  # strip anthropic- prefix
+    model="openai/$bare"
+    # OpenAI protocol: litellm/openai append /chat/completions, so the base must
+    # be the gateway's /v1 endpoint. The root serves the SPA there -- without /v1
+    # the model call gets an HTML page back, not a completion.
+    openai_base="${ANTHROPIC_BASE_URL%/}/v1"
+    cred_flags=(
+      --ae OPENAI_BASE_URL="$openai_base"
+      --ae OPENAI_API_BASE="$openai_base"
+      --ae OPENAI_API_KEY="$ANTHROPIC_API_KEY"
+    )
+    ;;
+  *)
+    # claude-code reads ANTHROPIC_BASE_URL from its own process env too.
+    export ANTHROPIC_BASE_URL ANTHROPIC_API_KEY
+    cred_flags=(
+      --ae ANTHROPIC_BASE_URL="$ANTHROPIC_BASE_URL"
+      --ae ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+    )
+    ;;
+esac
+
+# Pin numeric-library thread pools to the task's declared cpus so BLAS/OMP
+# threads match the container's CPU quota instead of the host's core count
+# (docker --cpus throttles CPU time but leaves nproc at the host's value).
+source "$(dirname "$0")/_adb_threads.sh"
+mapfile -t thread_ae < <(AutoDataBench_thread_flags --ae "$task")
+mapfile -t thread_ve < <(AutoDataBench_thread_flags --ve "$task")
+
+echo "[adb-testrun] $task  with  $TRAINEE_AGENT / $model  ->  $out" >&2
+"$HARBOR_REAL" run \
+  -p "$task" \
+  -a "$TRAINEE_AGENT" \
+  "${ak_flags[@]}" \
+  -m "$model" \
+  --n-concurrent 1 \
+  --agent-setup-timeout-multiplier 6 \
+  -o "$out" \
+  "${cred_flags[@]}" \
+  --ve ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  --ve ANTHROPIC_BASE_URL="$ANTHROPIC_BASE_URL" \
+  --ve ANTHROPIC_MODEL="${ADB_INNER_VERIFIER_MODEL:-deepseek-v4-pro}" \
+  "${thread_ae[@]}" \
+  "${thread_ve[@]}" \
+  --yes < /dev/null
+
+# harbor writes the reward into result.json at stats.evals.<eval>.metrics[0].mean
+# (n_trials==1, so the mean is that single attempt's reward) -- NOT into a
+# verifier/reward.json file, which harbor does not produce. Read the newest
+# result.json under $out, matching harness/score.py's read_result().
+# Scan result.json files newest-first and take the first that yields a mean; the
+# top-level run result.json carries stats.evals, per-task ones don't.
+res="" ; r=""
+while IFS= read -r p; do
+  m=$(jq -r '(.stats.evals // {}) | to_entries | map(.value.metrics[0]?.mean) | map(select(. != null)) | (.[0] // "")' "$p" 2>/dev/null)
+  if [[ -n "$m" && "$m" != "null" ]]; then res="$p"; r="$m"; break; fi
+done < <(find "$out" -name result.json -printf '%T@ %p\n' 2>/dev/null | sort -rn | cut -d' ' -f2-)
+if [[ -n "$r" && "$r" != "null" ]]; then
+  echo "[adb-testrun] trainee reward: $r   (from $res)" >&2
+  echo "[adb-testrun] trajectory + full output for analysis: $out" >&2
+else
+  echo "[adb-testrun] no reward parsed (run failed or unfinished?) -- inspect $out" >&2
+fi

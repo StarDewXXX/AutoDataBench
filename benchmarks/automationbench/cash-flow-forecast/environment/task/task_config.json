@@ -1,0 +1,19 @@
+{
+ "task_name": "finance.cash_flow_forecast",
+ "example_id": 4035,
+ "toolset": "limited_zapier",
+ "zapier_tools": [
+  "google_sheets_get_many_rows",
+  "google_sheets_find_worksheet",
+  "google_sheets_get_spreadsheet_by_id",
+  "gmail_send_email",
+  "google_drive_find_multiple_files"
+ ],
+ "allowed_services": [
+  "gmail",
+  "google_drive",
+  "google_sheets"
+ ],
+ "world_path": "/srv/world/world.json",
+ "seed_path": "/srv/world/initial_state.json"
+}

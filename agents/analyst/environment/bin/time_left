@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Print how much wall-clock time is left in this synthesis session.
+#
+# The session has a hard budget enforced by harbor (the agent phase is killed
+# when it elapses). ADB_DEADLINE_EPOCH is the unix timestamp of that kill,
+# set by the launcher. Note it is measured from launch, so a little of it is
+# eaten by environment/agent setup before you get control -- treat the number
+# here as a slight *under*-estimate and leave yourself margin.
+set -euo pipefail
+
+now=$(date +%s)
+dl="${ADB_DEADLINE_EPOCH:-}"
+if [[ -z "$dl" ]]; then
+  echo "time_left: ADB_DEADLINE_EPOCH not set (no budget configured)" >&2
+  exit 1
+fi
+
+rem=$(( dl - now ))
+(( rem < 0 )) && rem=0
+printf '%d min %02d sec left  (%d seconds)\n' $(( rem / 60 )) $(( rem % 60 )) "$rem"

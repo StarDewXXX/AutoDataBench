@@ -1,0 +1,16 @@
+{
+ "task_name": "simple.slack_customer_escalation",
+ "example_id": 3077,
+ "toolset": "limited_zapier",
+ "zapier_tools": [
+  "gmail_find_email",
+  "slack_list_channels",
+  "slack_send_channel_message"
+ ],
+ "allowed_services": [
+  "gmail",
+  "slack"
+ ],
+ "world_path": "/srv/world/world.json",
+ "seed_path": "/srv/world/initial_state.json"
+}

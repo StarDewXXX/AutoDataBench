@@ -1,0 +1,18 @@
+# This tree is the published copy: it is built from the working repository's
+# tracked files by a script, so the large, machine-specific and secret-bearing
+# directories (runs/, prep/, jobs/, archive/) never arrive here in the first place.
+# A run started inside this tree would create them, hence the entries.
+runs/
+prep/
+jobs/
+archive/
+
+# Local overrides. configs/default.json ships with placeholders; put a real
+# endpoint in a .local.json beside it rather than editing the tracked file.
+configs/*.local.json
+*.local.sh
+
+# Junk
+__pycache__/
+*.pyc
+.DS_Store

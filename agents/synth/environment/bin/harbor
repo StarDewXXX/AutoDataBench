@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Model-guard shim for `harbor`.
+#
+# During the synthesis phase the agent is allowed to invoke exactly ONE model:
+# ADB_ALLOWED_MODEL. This shim sits ahead of the real harbor on PATH and
+# refuses any `harbor run ... -m/--model <other>`. Runs with no model (e.g.
+# `-a oracle`) are always allowed. The real binary is called for everything
+# that passes.
+#
+# This is a guardrail, not an airtight jail: the authoritative enforcement is
+# the post-hoc trajectory audit in the verifier, which voids the submission if a
+# disallowed model was used by any route. Do not try to route around this.
+set -euo pipefail
+
+# The launcher injects HARBOR_REAL (the conda-mounted real harbor path) via --ae;
+# the literal below is only a fallback for the original single-machine setup.
+# The real harbor, which this wrapper shadows on PATH. Point HARBOR_REAL at your
+# own install; falling back to whatever `harbor` resolves to would re-enter this
+# wrapper and loop.
+HARBOR_REAL="${HARBOR_REAL:?HARBOR_REAL is unset -- set it to the absolute path of the real harbor binary}"
+allowed="${ADB_ALLOWED_MODEL:-}"
+
+# Only guard `run`/`job start`; pass other subcommands straight through.
+sub="${1:-}"
+guard=0
+[[ "$sub" == "run" ]] && guard=1
+[[ "$sub" == "job" && "${2:-}" == "start" ]] && guard=1
+
+if (( guard )) && [[ -n "$allowed" ]]; then
+  prev=""
+  for arg in "$@"; do
+    if [[ "$prev" == "-m" || "$prev" == "--model" ]]; then
+      if [[ "$arg" != "$allowed" ]]; then
+        echo "harbor(guard): model '$arg' is NOT permitted. The only allowed model is '$allowed'." >&2
+        echo "harbor(guard): use adb-testrun for trainee runs, or adb-oracle for free solvability checks." >&2
+        exit 3
+      fi
+    fi
+    case "$arg" in
+      -m=*|--model=*)
+        val="${arg#*=}"
+        if [[ "$val" != "$allowed" ]]; then
+          echo "harbor(guard): model '$val' is NOT permitted. The only allowed model is '$allowed'." >&2
+          exit 3
+        fi ;;
+    esac
+    prev="$arg"
+  done
+fi
+
+exec "$HARBOR_REAL" "$@"

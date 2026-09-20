@@ -1,0 +1,147 @@
+{
+  "benchmark": "tb-science",
+  "sampled_at": "2026-09-08T00:36:40+0800",
+  "sampler": {
+    "n_requested": 8,
+    "n_sampled": 8,
+    "n_available": 18,
+    "seed": 20260908,
+    "strategy": "stratified-round-robin"
+  },
+  "source": {
+    "root": "old/benchmarks/tb-science",
+    "tasks_root": "old/benchmarks/tb-science/tasks",
+    "commit": "c5e503653cf61a03d361114c9b965b640951db30"
+  },
+  "layout": {
+    "note": "tasks are flat directories directly under this one; names beginning with '_' are framework material, not tasks",
+    "infra": [
+      "README.md",
+      "LICENSE",
+      "CITATION.cff",
+      "CONTRIBUTING.md",
+      "REVIEWING.md"
+    ]
+  },
+  "domains_available": {
+    "earth-sciences": 3,
+    "engineering-sciences": 3,
+    "life-sciences": 4,
+    "mathematical-sciences": 4,
+    "physical-sciences": 4
+  },
+  "tasks": {
+    "baseline-free-localization": {
+      "domain": "engineering-sciences",
+      "domain_path": [
+        "engineering-sciences",
+        "mechanical-engineering"
+      ],
+      "source_rel": "engineering-sciences/mechanical-engineering/baseline-free-localization",
+      "task_name": "terminal-bench-science/baseline-free-localization",
+      "renamed_from": null
+    },
+    "dna-storage-codec": {
+      "domain": "mathematical-sciences",
+      "domain_path": [
+        "mathematical-sciences",
+        "applied-mathematics"
+      ],
+      "source_rel": "mathematical-sciences/applied-mathematics/dna-storage-codec",
+      "task_name": "terminal-bench-science/dna-storage-codec",
+      "renamed_from": null
+    },
+    "frustrated-heisenberg-nqs": {
+      "domain": "physical-sciences",
+      "domain_path": [
+        "physical-sciences",
+        "physics"
+      ],
+      "source_rel": "physical-sciences/physics/frustrated-heisenberg-nqs",
+      "task_name": "terminal-bench-science/frustrated-heisenberg-nqs",
+      "renamed_from": null
+    },
+    "geometric-pharmacophore-alignment": {
+      "domain": "physical-sciences",
+      "domain_path": [
+        "physical-sciences",
+        "chemistry"
+      ],
+      "source_rel": "physical-sciences/chemistry/geometric-pharmacophore-alignment",
+      "task_name": "terminal-bench-science/geometric-pharmacophore-alignment",
+      "renamed_from": null
+    },
+    "hbv-calibration-1": {
+      "domain": "earth-sciences",
+      "domain_path": [
+        "earth-sciences",
+        "geosciences"
+      ],
+      "source_rel": "earth-sciences/geosciences/hbv-calibration-1",
+      "task_name": "terminal-bench-science/hbv-calibration-1",
+      "renamed_from": null
+    },
+    "microarch-modeling": {
+      "domain": "engineering-sciences",
+      "domain_path": [
+        "engineering-sciences",
+        "electrical-engineering"
+      ],
+      "source_rel": "engineering-sciences/electrical-engineering/microarch-modeling",
+      "task_name": "terminal-bench-science/microarch-modeling",
+      "renamed_from": null
+    },
+    "noisy-blackbox-optimization": {
+      "domain": "mathematical-sciences",
+      "domain_path": [
+        "mathematical-sciences",
+        "operations-research"
+      ],
+      "source_rel": "mathematical-sciences/operations-research/noisy-blackbox-optimization",
+      "task_name": "terminal-bench-science/noisy-blackbox-optimization",
+      "renamed_from": null
+    },
+    "spatial-cell-annotation": {
+      "domain": "life-sciences",
+      "domain_path": [
+        "life-sciences",
+        "medicine"
+      ],
+      "source_rel": "life-sciences/medicine/spatial-cell-annotation",
+      "task_name": "terminal-bench-science/spatial-cell-annotation",
+      "renamed_from": null
+    }
+  },
+  "swaps": [
+    {
+      "at": "2026-09-08T19:28:42+0800",
+      "removed": "xrd-multiphase-qpa",
+      "removed_entry": {
+        "domain": "physical-sciences",
+        "domain_path": [
+          "physical-sciences",
+          "materials-science"
+        ],
+        "source_rel": "physical-sciences/materials-science/xrd-multiphase-qpa",
+        "task_name": "terminal-bench-science/xrd-multiphase-qpa",
+        "renamed_from": null
+      },
+      "added": "geometric-pharmacophore-alignment"
+    },
+    {
+      "at": "2026-09-08T20:47:15+0800",
+      "removed": "edna-mifish-community",
+      "removed_entry": {
+        "domain": "life-sciences",
+        "domain_path": [
+          "life-sciences",
+          "ecology"
+        ],
+        "source_rel": "life-sciences/ecology/edna-mifish-community",
+        "task_name": "terminal-bench-science/edna-mifish-community",
+        "renamed_from": null
+      },
+      "added": "spatial-cell-annotation"
+    }
+  ]
+}

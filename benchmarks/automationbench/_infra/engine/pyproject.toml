@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "abctl"
+version = "0.1.0"
+description = "Shell bridge (abctl) and harbor verifier for AutomationBench tasks"
+requires-python = ">=3.12"
+dependencies = []          # automationbench + its deps are installed separately
+
+[project.scripts]
+abctl = "abctl.cli:main"
+abctl-mcp = "abctl.mcp_server:main"
+abmcp = "abctl.mcp_client:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["abctl"]

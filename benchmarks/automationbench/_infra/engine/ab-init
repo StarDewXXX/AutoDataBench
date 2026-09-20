@@ -1,0 +1,42 @@
+#!/bin/sh
+# Container entrypoint for MCP-interface tasks.
+#
+# harbor's compose template overrides `command` (with `sleep infinity`) but not
+# ENTRYPOINT, so this is the one place a task can start a process before the agent is
+# exec'd into the container. It brings up the world service as root, waits for it to
+# listen, and hands off. The service itself loads the seed into memory and then unlinks
+# it -- after this point there is no file on disk describing the world that the agent
+# has not been given a tool to read.
+#
+# The service is supervised. If it dies mid-run the agent cannot restart it (it is an
+# unprivileged user and the service is root), so every remaining tool call would fail
+# and the trial would read as "the model could not do the task" rather than "the
+# environment broke". The restart reloads world.json, never the deleted seed, so the
+# agent's work so far is preserved rather than reverted.
+set -u
+PORT="${AB_MCP_PORT:-8900}"
+
+listening() {
+  python3 -c 'import socket,sys,os
+s=socket.socket(); s.settimeout(2)
+sys.exit(s.connect_ex(("127.0.0.1", int(os.environ.get("AB_MCP_PORT","8900")))))' 2>/dev/null
+}
+
+supervise() {
+  while true; do
+    abctl-mcp --transport http --host 127.0.0.1 --port "$PORT"
+    rc=$?
+    echo "ab-init: world service exited (rc=$rc); restarting from world.json" >&2
+    sleep 1
+  done
+}
+
+supervise &
+
+for _ in $(seq 1 300); do
+  listening && break
+  sleep 0.5
+done
+listening || echo "ab-init: world service did not start listening on $PORT" >&2
+
+exec "$@"

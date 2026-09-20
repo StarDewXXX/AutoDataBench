@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# adb-search "<query>" [num]
+#
+# Search the web. Results come back as plain text: for each hit a title line,
+# the URL, and a snippet. Use it the way a data researcher would -- to check a
+# constant, confirm a method, see whether a problem you are designing already
+# exists -- and read the snippets, then decide for yourself.
+#
+# There is a hard cap of ADB_SEARCH_MAX_CALLS searches for the whole session
+# (shared across everything you do, not per task). Every call is logged with its
+# query. Run `adb-search --status` to see how many you have left.
+#
+# IMPORTANT: searching is allowed; copying is not. Reproducing a problem or an
+# answer you found on the web -- even reworded -- is cheating and scores the task
+# zero. The judge reads this log together with your full trajectory.
+set -uo pipefail
+
+log="${ADB_WORK:-/tmp}/.adb-search.log"
+counter="${ADB_WORK:-/tmp}/.adb-search.count"
+lock="$counter.lock"
+max="${ADB_SEARCH_MAX_CALLS:-100}"
+script="${ADB_SEARCH_SCRIPT:-}"
+
+used() { [[ -s "$counter" ]] && cat "$counter" || echo 0; }
+
+if [[ "${1:-}" == "--status" ]]; then
+  u="$(used)"
+  echo "adb-search: $u of $max searches used this session ($(( max - u )) left)"
+  [[ -s "$log" ]] && { echo "--- queries so far ---"; cat "$log"; }
+  exit 0
+fi
+
+query="${1:-}"
+num="${2:-5}"
+[[ -n "$query" ]] || { echo "usage: adb-search \"<query>\" [num]   |   adb-search --status" >&2; exit 2; }
+
+[[ -n "$script" && -x "$script" ]] || {
+  echo "adb-search: no search backend configured (ADB_SEARCH_SCRIPT unset or not executable)" >&2
+  exit 3
+}
+
+# Reserve a slot under the lock, so parallel calls cannot overshoot the cap.
+# The reservation happens BEFORE the request: a failed search still costs a slot,
+# which is deliberate -- otherwise a broken query could be retried without bound.
+exec 9>"$lock"
+flock 9
+u="$(used)"
+if (( u >= max )); then
+  flock -u 9
+  echo "adb-search: search budget exhausted ($u/$max used this session). No more searches." >&2
+  exit 4
+fi
+echo $(( u + 1 )) > "$counter"
+n=$(( u + 1 ))
+flock -u 9
+
+start=$(date +%s)
+out="$("$script" "$query" "$num" 2>"$log.stderr")"
+rc=$?
+elapsed=$(( $(date +%s) - start ))
+
+# One audit line per call: the judge uses this to see what was looked up.
+printf '%s\t#%d/%d\trc=%d\t%ds\t%s\n' \
+  "$(date '+%F %T')" "$n" "$max" "$rc" "$elapsed" "$query" >> "$log"
+[[ -s "$log.stderr" ]] && sed 's/^/    /' "$log.stderr" >> "$log"
+
+if (( rc != 0 )); then
+  echo "adb-search: backend failed (rc=$rc):" >&2
+  [[ -s "$log.stderr" ]] && cat "$log.stderr" >&2
+  exit "$rc"
+fi
+
+printf '%s\n' "$out"
+echo
+echo "[adb-search $n/$max used]" >&2

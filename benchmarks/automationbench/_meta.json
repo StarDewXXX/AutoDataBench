@@ -1,0 +1,109 @@
+{
+  "benchmark": "automationbench",
+  "sampled_at": "2026-09-08T00:36:40+0800",
+  "sampler": {
+    "n_requested": 8,
+    "n_sampled": 8,
+    "n_available": 28,
+    "seed": 20260908,
+    "strategy": "stratified-round-robin"
+  },
+  "source": {
+    "root": "old/benchmarks/automationbench",
+    "tasks_root": "old/benchmarks/automationbench/tasks",
+    "commit": "c5e503653cf61a03d361114c9b965b640951db30"
+  },
+  "layout": {
+    "note": "tasks are flat directories directly under this one; names beginning with '_' are framework material, not tasks",
+    "infra": [
+      "base-image/",
+      "engine/",
+      "vendor/",
+      "build-base-image.sh",
+      "README.md"
+    ]
+  },
+  "domains_available": {
+    "finance": 4,
+    "hr": 4,
+    "marketing": 4,
+    "operations": 4,
+    "sales": 4,
+    "simple": 4,
+    "support": 4
+  },
+  "tasks": {
+    "cash-flow-forecast": {
+      "domain": "finance",
+      "domain_path": [
+        "finance"
+      ],
+      "source_rel": "finance/cash-flow-forecast",
+      "task_name": "automationbench/finance.cash_flow_forecast",
+      "renamed_from": null
+    },
+    "compliance-training-enforcement": {
+      "domain": "hr",
+      "domain_path": [
+        "hr"
+      ],
+      "source_rel": "hr/compliance-training-enforcement",
+      "task_name": "automationbench/hr.compliance_training_enforcement",
+      "renamed_from": null
+    },
+    "content-gap-analysis": {
+      "domain": "marketing",
+      "domain_path": [
+        "marketing"
+      ],
+      "source_rel": "marketing/content-gap-analysis",
+      "task_name": "automationbench/marketing.content_gap_analysis",
+      "renamed_from": null
+    },
+    "lead-scoring": {
+      "domain": "marketing",
+      "domain_path": [
+        "marketing"
+      ],
+      "source_rel": "marketing/lead-scoring",
+      "task_name": "automationbench/marketing.lead_scoring",
+      "renamed_from": null
+    },
+    "cross-department-budget-reconciliation": {
+      "domain": "operations",
+      "domain_path": [
+        "operations"
+      ],
+      "source_rel": "operations/cross-department-budget-reconciliation",
+      "task_name": "automationbench/operations.cross_department_budget_reconciliation",
+      "renamed_from": null
+    },
+    "qualify-lead": {
+      "domain": "sales",
+      "domain_path": [
+        "sales"
+      ],
+      "source_rel": "sales/qualify-lead",
+      "task_name": "automationbench/sales.qualify_lead",
+      "renamed_from": null
+    },
+    "slack-customer-escalation": {
+      "domain": "simple",
+      "domain_path": [
+        "simple"
+      ],
+      "source_rel": "simple/slack-customer-escalation",
+      "task_name": "automationbench/simple.slack_customer_escalation",
+      "renamed_from": null
+    },
+    "zoho-desk-warranty-processing": {
+      "domain": "support",
+      "domain_path": [
+        "support"
+      ],
+      "source_rel": "support/zoho-desk-warranty-processing",
+      "task_name": "automationbench/support.zoho_desk_warranty_processing",
+      "renamed_from": null
+    }
+  }
+}

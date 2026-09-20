@@ -1,0 +1,32 @@
+# Stage 3b: the judge task. One claude-code run driving the judge model reads the
+# delivered task, the customer's rollouts of it, the original task and its
+# rollouts, and the hidden failure-mode rubric, then writes one verdict: gate,
+# per-mode coverage, and format points.
+#
+# It is a full agent with a shell and docker (DooD) so it MAY run the delivered
+# task's oracle when it needs to settle a solvability claim -- but it decides
+# when that is warranted.
+#
+# Verification is disabled at launch; run_score.py reads the JSON the agent
+# writes to ADB_RESULT.
+version = "1.0"
+
+[agent]
+timeout_sec = 2400.0
+
+[verifier]
+timeout_sec = 120.0
+
+[environment]
+build_timeout_sec = 1200.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 20480
+gpus = 0
+mcp_servers = []
+
+[verifier.env]
+
+[environment.env]
+
+[solution.env]

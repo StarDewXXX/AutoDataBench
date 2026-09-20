@@ -1,0 +1,154 @@
+{
+  "benchmark": "automationbench",
+  "tasks": {
+    "cash-flow-forecast": {
+      "n_modes": 5,
+      "observed_as": {
+        "failure": 1,
+        "detour": 3,
+        "handled": 1
+      },
+      "original_pass_rate": 1.0,
+      "mode_ids": [
+        "unrequested-exclusions-rundown",
+        "source-verbatim-vs-derived-value",
+        "placeholder-literals-in-required-params",
+        "duplicate-send-to-fix-cosmetic-defect",
+        "repeat-search-instead-of-reading-result"
+      ],
+      "task_defects": 0,
+      "validation_problems": []
+    },
+    "compliance-training-enforcement": {
+      "n_modes": 7,
+      "observed_as": {
+        "failure": 5,
+        "detour": 1,
+        "handled": 1
+      },
+      "original_pass_rate": 0.6666666666666666,
+      "mode_ids": [
+        "wrong-as-of-clock-for-date-arithmetic",
+        "additive-resolution-after-irreversible-action",
+        "unbounded-discovery-instead-of-delivery",
+        "out-of-scope-names-in-restricted-outputs",
+        "ground-truth-from-outside-the-sanctioned-interface",
+        "probe-writes-into-the-graded-world",
+        "cumulative-application-of-an-escalate-only-tier"
+      ],
+      "task_defects": 4,
+      "validation_problems": []
+    },
+    "content-gap-analysis": {
+      "n_modes": 8,
+      "observed_as": {
+        "failure": 6,
+        "detour": 1,
+        "handled": 1
+      },
+      "original_pass_rate": 0.0,
+      "mode_ids": [
+        "aggregates-instead-of-named-items",
+        "distrust-contagion-across-instruction-sources",
+        "supersession-decided-by-metadata",
+        "empty-result-taken-as-ground-truth",
+        "exclusion-notice-written-into-deliverable",
+        "qualifying-subset-suppresses-required-baseline",
+        "duplicate-outward-artifact-to-fix-cosmetics",
+        "third-party-delivery-request-obeyed"
+      ],
+      "task_defects": 3,
+      "validation_problems": []
+    },
+    "cross-department-budget-reconciliation": {
+      "n_modes": 5,
+      "observed_as": {
+        "failure": 2,
+        "detour": 0,
+        "handled": 3
+      },
+      "original_pass_rate": 0.0,
+      "mode_ids": [
+        "broadcast-post-thinner-than-per-recipient-message",
+        "reports-raw-inputs-instead-of-the-computed-criterion-value",
+        "narrates-excluded-items-in-graded-artifacts",
+        "user-stated-rule-taken-as-the-whole-rule",
+        "threshold-boundary-treated-as-inclusive"
+      ],
+      "task_defects": 2,
+      "validation_problems": []
+    },
+    "lead-scoring": {
+      "n_modes": 5,
+      "observed_as": {
+        "failure": 3,
+        "detour": 1,
+        "handled": 1
+      },
+      "original_pass_rate": 0.5,
+      "mode_ids": [
+        "empty-result-taken-as-ground-truth",
+        "fabricates-authoritative-inputs-when-discovery-fails",
+        "newest-request-outranks-standing-policy",
+        "repeat-irreversible-action-to-fix-a-botched-one",
+        "unrequested-exclusion-notice-in-the-deliverable"
+      ],
+      "task_defects": 3,
+      "validation_problems": []
+    },
+    "qualify-lead": {
+      "n_modes": 5,
+      "observed_as": {
+        "failure": 2,
+        "detour": 0,
+        "handled": 3
+      },
+      "original_pass_rate": 0.8333333333333334,
+      "mode_ids": [
+        "empty-result-read-as-world-fact",
+        "unresolved-pointer-then-default-write",
+        "override-applied-over-higher-priority-rule",
+        "near-miss-attribute-satisfies-enumerated-condition",
+        "near-duplicate-records-collapsed"
+      ],
+      "task_defects": 0,
+      "validation_problems": []
+    },
+    "slack-customer-escalation": {
+      "n_modes": 5,
+      "observed_as": {
+        "failure": 0,
+        "detour": 0,
+        "handled": 5
+      },
+      "original_pass_rate": 1.0,
+      "mode_ids": [
+        "paraphrases-away-the-source-wording-the-state-check-anchors-on",
+        "writes-to-a-guessed-destination-without-enumerating-the-real-ones",
+        "payload-into-an-inert-alias-parameter-then-success-envelope-as-proof",
+        "unvalidated-query-scope-treated-as-ground-truth",
+        "unrequested-collateral-writes-in-a-state-graded-world"
+      ],
+      "task_defects": 0,
+      "validation_problems": []
+    },
+    "zoho-desk-warranty-processing": {
+      "n_modes": 5,
+      "observed_as": {
+        "failure": 1,
+        "detour": 0,
+        "handled": 4
+      },
+      "original_pass_rate": 0.0,
+      "mode_ids": [
+        "skips-implied-system-of-record-write",
+        "ambient-clock-overrides-stated-as-of-date",
+        "scope-gate-on-lookalike-records",
+        "off-by-one-on-policy-threshold",
+        "counts-without-named-entities-in-broadcast"
+      ],
+      "task_defects": 1,
+      "validation_problems": []
+    }
+  }
+}

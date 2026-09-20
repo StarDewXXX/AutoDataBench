@@ -1,0 +1,23 @@
+{
+ "task_name": "sales.qualify_lead",
+ "example_id": 5,
+ "toolset": "limited_zapier",
+ "zapier_tools": [
+  "salesforce_find_records",
+  "salesforce_lead_update",
+  "google_sheets_get_many_rows",
+  "gmail_list_emails",
+  "salesforce_query",
+  "google_drive_find_multiple_files",
+  "google_sheets_get_spreadsheet_by_id",
+  "google_sheets_find_worksheet"
+ ],
+ "allowed_services": [
+  "gmail",
+  "google_drive",
+  "google_sheets",
+  "salesforce"
+ ],
+ "world_path": "/srv/world/world.json",
+ "seed_path": "/srv/world/initial_state.json"
+}

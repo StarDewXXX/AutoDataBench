@@ -1,0 +1,150 @@
+{
+  "benchmark": "terminal-bench",
+  "sampled_at": "2026-09-08T19:17:00+0800",
+  "sampler": {
+    "n_requested": 8,
+    "n_sampled": 8,
+    "n_available": 66,
+    "seed": 20260908,
+    "strategy": "explicit-pick",
+    "pick": [
+      "interleaved-vigenere",
+      "session-window-debug",
+      "batched-eval-parity",
+      "cad-model",
+      "medical-claims-processing",
+      "roy-polymorph-cn",
+      "satb-audio-transcription",
+      "react-lead-form"
+    ]
+  },
+  "source": {
+    "root": "<upstream>/terminal-bench",
+    "tasks_root": "<upstream>/terminal-bench/tasks",
+    "commit": "624df069c505c5ddd21d2d78467dd5579020db95"
+  },
+  "layout": {
+    "note": "tasks are flat directories directly under this one; names beginning with '_' are framework material, not tasks",
+    "infra": [
+      "README.md",
+      "LICENSE",
+      "CITATION.cff",
+      "CONTRIBUTING.md"
+    ]
+  },
+  "domains_available": {},
+  "tasks": {
+    "batched-eval-parity": {
+      "domain": "ML",
+      "domain_path": [
+        "ML",
+        "Evaluation"
+      ],
+      "source_rel": "batched-eval-parity",
+      "task_name": "terminal-bench/batched-eval-parity",
+      "renamed_from": null
+    },
+    "interleaved-vigenere": {
+      "domain": "Security",
+      "domain_path": [
+        "Security",
+        "Cryptography"
+      ],
+      "source_rel": "interleaved-vigenere",
+      "task_name": "terminal-bench/interleaved-vigenere",
+      "renamed_from": null
+    },
+    "medical-claims-processing": {
+      "domain": "Operations",
+      "domain_path": [
+        "Operations",
+        "Claims"
+      ],
+      "source_rel": "medical-claims-processing",
+      "task_name": "terminal-bench/medical-claims-processing",
+      "renamed_from": null
+    },
+    "react-lead-form": {
+      "domain": "Software",
+      "domain_path": [
+        "Software",
+        "Frontend"
+      ],
+      "source_rel": "react-lead-form",
+      "task_name": "terminal-bench/react-lead-form",
+      "renamed_from": null
+    },
+    "retro-console-soc": {
+      "domain": "Hardware",
+      "domain_path": [
+        "Hardware",
+        "RTL"
+      ],
+      "source_rel": "retro-console-soc",
+      "task_name": "terminal-bench/retro-console-soc",
+      "renamed_from": null
+    },
+    "roy-polymorph-cn": {
+      "domain": "Science",
+      "domain_path": [
+        "Science",
+        "Chemistry"
+      ],
+      "source_rel": "roy-polymorph-cn",
+      "task_name": "terminal-bench/roy-polymorph-cn",
+      "renamed_from": null
+    },
+    "satb-audio-transcription": {
+      "domain": "Media",
+      "domain_path": [
+        "Media",
+        "Music"
+      ],
+      "source_rel": "satb-audio-transcription",
+      "task_name": "terminal-bench/satb-audio-transcription",
+      "renamed_from": null
+    },
+    "session-window-debug": {
+      "domain": "Software",
+      "domain_path": [
+        "Software",
+        "Systems"
+      ],
+      "source_rel": "session-window-debug",
+      "task_name": "terminal-bench/session-window-debug",
+      "renamed_from": null
+    }
+  },
+  "swaps": [
+    {
+      "at": "2026-09-08T23:12:05+0800",
+      "removed": "cad-model",
+      "removed_entry": {
+        "domain": "Hardware",
+        "domain_path": [
+          "Hardware",
+          "CAD"
+        ],
+        "source_rel": "cad-model",
+        "task_name": "terminal-bench/cad-model",
+        "renamed_from": null
+      },
+      "added": "freecad-platform-drawing"
+    },
+    {
+      "at": "2026-09-08T23:13:58+0800",
+      "removed": "freecad-platform-drawing",
+      "removed_entry": {
+        "domain": "Hardware",
+        "domain_path": [
+          "Hardware",
+          "CAD"
+        ],
+        "source_rel": "freecad-platform-drawing",
+        "task_name": "terminal-bench/freecad-platform-drawing",
+        "renamed_from": null
+      },
+      "added": "retro-console-soc"
+    }
+  ]
+}

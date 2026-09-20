@@ -1,0 +1,77 @@
+{
+  "gateway": {
+    "base_url": "https://your-gateway.example.com",
+    "api_key": "env:AUTODATABENCH_API_KEY"
+  },
+  "sample": {
+    "n_per_benchmark": 8,
+    "seed": 20260908,
+    "strategy": "stratified-round-robin",
+    "source_root": "",
+    "exclude": {
+      "terminal-bench": [
+        "coq-block-bound",
+        "math-eval-grader",
+        "freecad-impeller",
+        "fp8-rmsnorm-gemm",
+        "cad-model",
+        "freecad-platform-drawing"
+      ],
+      "_note": "tasks whose environment cannot run on this aarch64 host: amd64-only base images (claude-code installer aborts under qemu), a conda post-link failure, a GPU requirement; xrd-multiphase-qpa: pymatgen 2024.8.9 has no aarch64 wheel and the slim image has no gcc; edna-mifish-community: tests/runs data was never committed upstream (upstream .gitignore excludes 'runs'), so the verifier image cannot build; cad-model: verifier needs cascadio, which ships no linux-aarch64 wheel; freecad-* tasks: micromamba freecad install fails on this host (gdk-pixbuf post-link)",
+      "tb-science": [
+        "xrd-multiphase-qpa",
+        "edna-mifish-community"
+      ]
+    },
+    "source_override": {
+      "terminal-bench": "<upstream>/terminal-bench"
+    },
+    "_source_root_note": "empty on purpose: the full upstream benchmark copies are NOT in this repository. benchmarks/<benchmark>/ already holds the sampled subset and _meta.json records the seed, the source commit and the original paths. To resample, point sample.source_override.<benchmark> at your own upstream checkout."
+  },
+  "customer": {
+    "agent": "claude-code",
+    "model": "deepseek-v4-pro",
+    "attempts": 6,
+    "closed_book": true
+  },
+  "analyst": {
+    "agent": "claude-code",
+    "model": "claude-opus-5",
+    "budget_min": 40
+  },
+  "researcher": {
+    "agent": "claude-code",
+    "model": "deepseek-v4-pro",
+    "budget_min": 45,
+    "agent_setup_timeout_mult": 6,
+    "max_concurrent_docker": 3,
+    "search_script": "harness/search-serper.sh",
+    "search_max_calls": 100,
+    "web_access": true,
+    "direct_customer_calls": true,
+    "_search_script_note": "serper through the gateway; authenticates with the container's own ANTHROPIC_API_KEY and holds no secret of its own. Was accidentally left empty until 2026-09-10, so the researcher had web permission but no search tool in runs 20260909-003117 / 20260909-235203 / 20260910-125300 and used none."
+  },
+  "judge": {
+    "agent": "claude-code",
+    "model": "claude-opus-5",
+    "budget_min": 40
+  },
+  "score": {
+    "band_lo": 0.125,
+    "band_hi": 0.75,
+    "quality_coverage_target": 0.6,
+    "_quality_coverage_target_note": "the fraction of the rubric's failure modes that counts as full quality: quality = min(1, covered / ceil(a * scoreable_modes)). 1.0 is the plain fraction. Set below 1 because one new task cannot stage every mode of the task it was built from without being that task -- in run 20260909-003117 every episode that reached full coverage was also gated as a clone. At 0.6 with the usual 5-mode rubric, 3 exercised modes score 1.0.",
+    "n_concurrent": 20,
+    "setup_timeout_mult": 6,
+    "outer_wall_task_multiplier": 1.5,
+    "_format_note": "format is measured by the judge and recorded in score.json, but does not enter the score: score = gate * difficulty * quality. Across in-band deliveries it concentrates between 0.75 and 1.0, too narrow at any sensible weight to separate agents, and a delivery that fails the checks badly enough is caught by the gate instead."
+  },
+  "task_timeout_sec": {
+    "tb-science": 7200,
+    "terminal-bench": 7200,
+    "automationbench": 1800,
+    "default": 1800
+  },
+  "claude_code_version": "2.1.263",
+  "_claude_code_version_note": "pin the claude-code release: harbor installs it per container from bootstrap.sh with no version, and 2.1.265 (published 2026-09-09 06:31) installs without putting claude on PATH, killing every run started after that minute"
+}

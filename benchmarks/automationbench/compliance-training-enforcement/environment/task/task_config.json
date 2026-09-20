@@ -1,0 +1,23 @@
+{
+ "task_name": "hr.compliance_training_enforcement",
+ "example_id": 5106,
+ "toolset": "limited_zapier",
+ "zapier_tools": [
+  "gmail_find_email",
+  "gmail_get_email_by_id",
+  "gmail_send_email",
+  "google_sheets_get_many_rows",
+  "google_sheets_update_row",
+  "google_sheets_find_worksheet",
+  "google_sheets_get_spreadsheet_by_id",
+  "slack_send_channel_message"
+ ],
+ "allowed_services": [
+  "gmail",
+  "google_drive",
+  "google_sheets",
+  "slack"
+ ],
+ "world_path": "/srv/world/world.json",
+ "seed_path": "/srv/world/initial_state.json"
+}

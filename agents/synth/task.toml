@@ -1,0 +1,30 @@
+# Stage 3a: the researcher task. One claude-code run driving the researcher model
+# reads ONE original task plus that task's customer rollout bundle, and authors
+# ONE new task in the same native format.
+#
+# The agent phase is the controlled budget. 1800s is the base; run_synth.py
+# scales it with --agent-timeout-multiplier to match configs/*.json. harbor
+# enforces it around agent.run() -- it excludes agent setup and the verifier.
+#
+# Verification is disabled at launch; run_score.py grades what the agent wrote.
+version = "1.0"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0
+
+[environment]
+build_timeout_sec = 1200.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 20480
+gpus = 0
+mcp_servers = []
+
+[verifier.env]
+
+[environment.env]
+
+[solution.env]

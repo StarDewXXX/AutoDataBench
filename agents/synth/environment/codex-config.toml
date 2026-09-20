@@ -1,0 +1,33 @@
+# codex's config, pre-placed at the CODEX_HOME harbor uses (/tmp/codex-home).
+#
+# Only needed when researcher.agent is "codex"; inert for every other harness, so
+# it ships unconditionally rather than being wired into a conditional build.
+#
+# Why it exists: codex 0.154 sends Responses over a WebSocket by default. Our
+# gateway rejects the upgrade with 400 and a body that reads
+# `{"error":{"message":"Model is unsupported and no wildcard routing rule is
+# configured","type":"unsupported_model"}}` -- which is thoroughly misleading,
+# because the model is fine over plain HTTP. codex retries the socket twice and
+# fails the turn without ever making an HTTP request, so the run dies in seconds
+# with a message that sends you hunting for a model-name problem that isn't there.
+#
+# `supports_websockets` is a property of a model provider, and the builtin
+# `openai` provider does not expose it (openai/codex#28503), so the only way to
+# turn the socket off is to declare our own provider and select it. Note that
+# `wire_api = "chat"` is not an escape hatch: recent codex removed it and fails
+# at startup if you set it.
+#
+# base_url is substituted by render_task from configs/*.json gateway.base_url --
+# never hard-code it here, or a run pointed at a second gateway would silently
+# talk to the first. harbor appends `openai_base_url = ...` to the end of this
+# file at agent-setup time, which lands inside the table below as an unknown key;
+# codex ignores it (verified 2026-09-13), and this provider's own base_url is
+# what takes effect.
+model_provider = "adbgw"
+
+[model_providers.adbgw]
+name = "AutoDataBench gateway"
+base_url = "__GATEWAY_BASE_URL__/v1"
+env_key = "OPENAI_API_KEY"
+wire_api = "responses"
+supports_websockets = false

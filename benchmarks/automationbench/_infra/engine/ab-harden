@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Remove the grader from an agent-facing image, at build time.
+
+The assertions are the answer key and only ever ship in ``tests/``, which harbor
+uploads after the agent phase. But leaving the rubric *code* in the agent's image
+hands it the exact matching semantics of all 597 assertion handlers, and a real run
+confirmed that is not a hypothetical risk: deepseek opened
+``automationbench/rubric/assertions/gmail.py`` mid-task to reverse-engineer how
+recipients are matched. Upstream shows a model none of this.
+
+So the environment image drops:
+
+* ``automationbench.rubric`` — the handlers and ``partial_credit``
+* ``abctl.scoring``          — the grader entry point
+* ``abctl.oracle``           — the constructive applier, which needs the registry
+
+The verifier image is built from the untouched base, so grading is unaffected. The one
+casualty is ``abctl oracle`` (the constructive self-check solution); regenerate a task
+with ``convert.py --keep-grader`` when that is needed.
+
+Run as a build step; it verifies its own result and fails the build if the grader is
+still reachable.
+"""
+
+from __future__ import annotations
+
+import pathlib
+import shutil
+import subprocess
+import sys
+import sysconfig
+
+site = pathlib.Path(sysconfig.get_paths()["purelib"])
+
+shutil.rmtree(site / "automationbench" / "rubric", ignore_errors=True)
+for name in ("scoring.py", "oracle.py"):
+    (site / "abctl" / name).unlink(missing_ok=True)
+for pkg in ("automationbench", "abctl"):
+    for cache in (site / pkg).rglob("__pycache__"):
+        shutil.rmtree(cache, ignore_errors=True)
+
+# Defence in depth: the base image removes its pip build contexts, but a stale or
+# hand-built base might still carry them, and they hold a second full copy of every
+# module -- including the rubric just deleted from site-packages.
+for stale in (pathlib.Path("/opt/automationbench-engine"), pathlib.Path("/opt/abctl")):
+    shutil.rmtree(stale, ignore_errors=True)
+
+# The agent's own interface must survive the removal.
+subprocess.run(
+    [
+        sys.executable,
+        "-c",
+        "import abctl.cli, abctl.tools, abctl.world, abctl.services, abctl.mcp_server;"
+        "from automationbench.tools import ALL_TOOLS;"
+        "from automationbench.tools.api import API_TOOLS;"
+        "assert len(ALL_TOOLS) > 500, len(ALL_TOOLS)",
+    ],
+    check=True,
+)
+
+leftovers = [
+    str(p) for p in pathlib.Path("/").glob("opt/**/rubric/assertions/*.py")
+] + [str(p) for p in site.glob("automationbench/rubric/**/*.py")]
+if leftovers:
+    raise SystemExit(f"FATAL: rubric source still on disk: {leftovers[:3]}")
+
+for module in ("automationbench.rubric", "abctl.scoring", "abctl.oracle"):
+    try:
+        __import__(module)
+    except ImportError:
+        continue
+    raise SystemExit(f"FATAL: {module} is still importable in the agent image")
+
+# Also take the simulator itself out of the agent's reach. Upstream shows a model the
+# schemas of its permitted tools and nothing else; leaving the package world-readable
+# hands over the source of all 549 tools and the full 47-service world model. The world
+# service runs as root so it can still import them; `abmcp` (which the unprivileged
+# reference solution uses) imports only abctl.mcp_client, which does not touch
+# automationbench, so it keeps working.
+pkg = site / "automationbench"
+for path in [pkg, *pkg.rglob("*")]:
+    path.chmod(0o750 if path.is_dir() else 0o640)
+
+print("ab-harden: grader removed; simulator source restricted; agent interface intact")

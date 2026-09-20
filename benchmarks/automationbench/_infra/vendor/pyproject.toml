@@ -1,0 +1,25 @@
+# Trimmed build config for the vendored AutomationBench engine.
+#
+# The upstream package is vendored here WITHOUT automationbench/domains (the
+# assertion answer keys for all 806 tasks -- they must never reach an agent
+# container) and without the modules that pull in the `verifiers` evaluation
+# stack (runner/clients/batch/usage/export/console/pricing/scripts), which the
+# harbor bridge does not use. What remains is the world schema, the ~550 tool
+# functions, the API routers and the rubric.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "automation-bench-engine"
+version = "1.0.6"
+description = "AutomationBench world schema, tools and rubric (vendored subset)"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0",
+    "openai>=1.0",          # a handful of tools import it lazily
+    "openai-agents>=0.2",   # agents.function_schema: tool JSON-schema generation
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["automationbench"]

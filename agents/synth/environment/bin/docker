@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Ownership shim for `docker`.
+#
+# You have a real docker here (the host's rootless daemon, via a mounted socket),
+# and you are welcome to use it. This shim only tags what you create so the run
+# that started you can clean up after itself: it adds
+#   --label adb.run=$ADB_RUN_ID
+# to `docker run`, `docker create` and `docker build`, then calls the real docker.
+# Nothing else is touched -- `docker compose`, `ps`, `logs`, `rmi` and everything
+# else pass through byte-for-byte.
+#
+# Why this exists: containers you start with a bare `docker run` are siblings of
+# your own container on the same daemon, not children of it. Nothing tears them
+# down when your session ends. One such container outlived its run by seven hours,
+# held a CPU core, and wrote a 384 GB log file. The label is how the launcher
+# finds and removes yours at the end, and it costs you nothing.
+#
+# A container you no longer need is still best removed with `--rm` or `docker rm`.
+set -uo pipefail
+
+REAL="${ADB_DOCKER_REAL:-/usr/bin/docker}"
+[[ -x "$REAL" ]] || { echo "docker shim: real docker not found at $REAL" >&2; exit 127; }
+
+run_id="${ADB_RUN_ID:-}"
+
+# Find the subcommand: the first argument that is not a global flag. Global flags
+# that take a value (-H/--host, --context, --config, --log-level) must not have
+# their value mistaken for the subcommand.
+sub=""; idx=0
+while (( idx < $# )); do
+  a="${@:idx+1:1}"
+  case "$a" in
+    -H|--host|--context|--config|-l|--log-level|--tlscacert|--tlscert|--tlskey)
+      idx=$((idx+2)); continue ;;
+    -*) idx=$((idx+1)); continue ;;
+    *)  sub="$a"; break ;;
+  esac
+done
+
+# Only these create long-lived objects worth labelling. `compose` is deliberately
+# absent: harbor drives compose, and injecting flags there would corrupt its calls.
+case "$sub" in
+  run|create|build)
+    if [[ -n "$run_id" ]]; then
+      # Insert the label immediately after the subcommand, where flags belong.
+      set -- "${@:1:idx+1}" --label "adb.run=$run_id" "${@:idx+2}"
+    fi
+    ;;
+esac
+
+exec "$REAL" "$@"

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# adb-oracle <task-dir>
+#
+# Run one of the tasks you are authoring through its OWN reference solution
+# (harbor's `oracle` agent runs solution/solve.sh, then the verifier grades it).
+# This is the free solvability check: no model is called, so it costs you no API
+# budget. Use it to confirm a task is actually solvable and its verifier passes
+# on the intended solution BEFORE you spend budget measuring difficulty.
+set -euo pipefail
+
+# The real harbor, which this wrapper shadows on PATH. Point HARBOR_REAL at your
+# own install; falling back to whatever `harbor` resolves to would re-enter this
+# wrapper and loop.
+HARBOR_REAL="${HARBOR_REAL:?HARBOR_REAL is unset -- set it to the absolute path of the real harbor binary}"
+
+task="${1:?usage: adb-oracle <task-dir>}"
+task="$(readlink -f "$task")"
+case "$task" in
+  "$ADB_WORK"/*) : ;;
+  *) echo "adb-oracle: task must live under $ADB_WORK (host-aligned; required for docker)" >&2; exit 2 ;;
+esac
+
+ts=$(date +%Y%m%d-%H%M%S-%N)
+out="$ADB_TESTRUN_OUT/oracle-$ts"
+mkdir -p "$out"
+
+# Respect the shared docker concurrency cap (ADB_MAX_CONCURRENT slots).
+source "$(dirname "$0")/_adb_slots.sh"
+AutoDataBench_acquire_slot
+
+# Pin numeric-library thread pools to the task's declared cpus (see
+# _adb_threads.sh): the solution and verifier containers otherwise open one
+# BLAS/OMP thread per host core against a 1-2 core quota.
+source "$(dirname "$0")/_adb_threads.sh"
+mapfile -t thread_ae < <(AutoDataBench_thread_flags --ae "$task")
+mapfile -t thread_ve < <(AutoDataBench_thread_flags --ve "$task")
+
+echo "[adb-oracle] $task  ->  $out" >&2
+"$HARBOR_REAL" run \
+  -p "$task" \
+  -a oracle \
+  --n-concurrent 1 \
+  --agent-setup-timeout-multiplier 6 \
+  -o "$out" \
+  "${thread_ae[@]}" \
+  "${thread_ve[@]}" \
+  --yes < /dev/null
+
+# harbor writes the reward into result.json at stats.evals.<eval>.metrics[0].mean,
+# not into a verifier/reward.json file. Read the newest result.json under $out,
+# matching harness/score.py's read_result().
+# Scan result.json files newest-first and take the first that yields a mean; the
+# top-level run result.json carries stats.evals, per-task ones don't.
+res="" ; r=""
+while IFS= read -r p; do
+  m=$(jq -r '(.stats.evals // {}) | to_entries | map(.value.metrics[0]?.mean) | map(select(. != null)) | (.[0] // "")' "$p" 2>/dev/null)
+  if [[ -n "$m" && "$m" != "null" ]]; then res="$p"; r="$m"; break; fi
+done < <(find "$out" -name result.json -printf '%T@ %p\n' 2>/dev/null | sort -rn | cut -d' ' -f2-)
+if [[ -n "$r" && "$r" != "null" ]]; then
+  echo "[adb-oracle] reward: $r   (from $res)" >&2
+  echo "[adb-oracle] full output for inspection: $out" >&2
+else
+  echo "[adb-oracle] no reward parsed (run failed or unfinished?) -- inspect $out" >&2
+fi

