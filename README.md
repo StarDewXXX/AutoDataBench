@@ -3,6 +3,15 @@
 A benchmark for one capability: given a model that keeps failing at some kind of
 work, can an agent build training data that exercises that failure?
 
+![What AutoDataBench measures](docs/figs/overview.png)
+
+Data production today is a team of people working alongside a coding agent, reading
+an existing suite of executable tasks and writing new ones, which a quality check
+accepts or sends back before any training run. AutoDataBench replaces that team with
+the single agent under evaluation and holds everything else fixed: the suite, the
+tools, and the check itself. Only the output of the check differs, a score for the
+agent rather than a delivery decision.
+
 ## Quick start
 
 Requires Python 3.11+, Docker, and [harbor](https://github.com/laude-institute/harbor)
@@ -95,6 +104,14 @@ evaluated, so that scores are comparable.
 
 The code calls the target model the *customer*, and that name appears in paths and
 config keys.
+
+![One episode](docs/figs/episode.png)
+
+The analyst reduces the target model's record of the original task to a hidden
+rubric, which the agent under evaluation never sees. The agent delivers one new
+task; the target model then attempts it under that task's own verifier, which fixes
+the difficulty term by execution. The judge reads those new transcripts, not the
+task's appearance, and decides the gate and rubric coverage.
 
 ```
   1  sample      N tasks per benchmark, flattened, domain recorded in _meta.json
