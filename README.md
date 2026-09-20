@@ -1,8 +1,7 @@
 <h1 align="center">AutoDataBench</h1>
 
 <p align="center">
-  Given a model that keeps failing at some kind of work,<br>
-  can an agent build the training data that exercises that failure?
+  <b>Can agents write the data that feeds the self-improvement loop?</b>
 </p>
 
 <p align="center">
