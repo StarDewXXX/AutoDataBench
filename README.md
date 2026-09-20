@@ -1,9 +1,21 @@
-# AutoDataBench
+<h1 align="center">AutoDataBench</h1>
 
-A benchmark for one capability: given a model that keeps failing at some kind of
-work, can an agent build training data that exercises that failure?
+<p align="center">
+  Given a model that keeps failing at some kind of work,<br>
+  can an agent build the training data that exercises that failure?
+</p>
 
-![What AutoDataBench measures](docs/figs/overview.png)
+<p align="center">
+  <a href="#quick-start">Quick start</a> &nbsp;·&nbsp;
+  <a href="#why-this-benchmark">Why</a> &nbsp;·&nbsp;
+  <a href="#how-an-episode-works">How it works</a> &nbsp;·&nbsp;
+  <a href="#scoring">Scoring</a> &nbsp;·&nbsp;
+  <a href="LICENSE">Apache-2.0</a>
+</p>
+
+<p align="center">
+  <img src="docs/figs/overview.png" alt="What AutoDataBench measures" width="820">
+</p>
 
 Data production today is a team of people working alongside a coding agent, reading
 an existing suite of executable tasks and writing new ones, which a quality check
@@ -12,43 +24,40 @@ the single agent under evaluation and holds everything else fixed: the suite, th
 tools, and the check itself. Only the output of the check differs, a score for the
 agent rather than a delivery decision.
 
-![Scores](docs/figs/results.png)
+<p align="center">
+  <img src="docs/figs/results.png" alt="Scores" width="680">
+</p>
 
 Five agents, each authoring against the same target model on the same 24 original
-tasks. None passes 0.2. The decomposition puts the failure away from targeting:
-rubric coverage is close to saturated, while the pass rate fails at both ends, with
+tasks. None passes 0.2, and the decomposition puts the failure away from targeting:
+rubric coverage is close to saturated while the pass rate fails at both ends, with
 delivered tasks tending to be solved on every attempt or on none.
 
 ## Quick start
 
-Requires Python 3.11+, Docker, and [harbor](https://github.com/laude-institute/harbor)
-for running tasks in containers.
+Needs Python 3.11+, Docker, and [harbor](https://github.com/laude-institute/harbor).
 
 ```bash
-export AUTODATABENCH_API_KEY=...          # your gateway key; never written to a config
-export HARBOR_REAL=$(which harbor)        # the real binary the in-container wrappers hand off to
+export AUTODATABENCH_API_KEY=...        # your gateway key, never written to a config
+export HARBOR_REAL=$(which harbor)
 ```
 
-Fill in the two placeholders in `configs/default.json`: `gateway.base_url`, the
+Then fill in two placeholders in `configs/default.json` — `gateway.base_url`, the
 endpoint every role reaches its model through, and `sample.source_override`, needed
-only if you resample the benchmark subset. Then:
+only if you resample the benchmark subset.
 
 ```bash
-# 1. the target model attempts each original task, six times           (once per benchmark)
-python3 harness/run_rollout.py --benchmark tb-science
+# prep, once per benchmark
+python3 harness/run_rollout.py --benchmark tb-science    # target model attempts each original
+python3 harness/run_analyst.py --benchmark tb-science    # its record becomes a hidden rubric
 
-# 2. an analyst reduces those attempts to a hidden rubric of failure modes
-python3 harness/run_analyst.py --benchmark tb-science
-
-# 3. the measured stage: the agent authors one new task per original, and is scored
+# the measurement, run as often as you like
 python3 harness/run_episode.py --benchmark tb-science --episodes 3
-
-python3 harness/aggregate.py --run-id <run_id>
+python3 harness/aggregate.py   --run-id <run_id>
 ```
 
-Stages 1 and 2 are prep and run once per benchmark. Stage 3 is the measurement and
-runs many times. Output lands in `runs/<run_id>/<benchmark>/<task>/<ep>/`, one
-directory per episode, with `score.json` at its root.
+Output lands in `runs/<run_id>/<benchmark>/<task>/<ep>/`, one directory per episode,
+with `score.json` at its root.
 
 ## Why this benchmark
 
@@ -69,13 +78,15 @@ thing standing between such a loop and its own degradation.
 against criteria set in advance rather than against the outcome of a training run,
 and not only for reasons of cost: the contribution of one task to one training run
 is not separable from the data mixture, the schedule and the base model, so a
-training-based verdict on a single artifact is unavailable in principle. The
-criteria are three. The task has to be usable at all, which means running in the
-suite's own format and being graded by a verifier that a wrong answer does not pass.
-The target model's pass rate on it has to be non-zero and moderate, since a task
-that is never solved and a task that is always solved are both discarded. And it has
-to elicit approximately the behaviour the original task elicited, because that
-behaviour is the reason the task was commissioned.
+training-based verdict on a single artifact is unavailable in principle. Three
+criteria stand in for it.
+
+1. **Usable at all.** It runs in the suite's own format and is graded by a verifier
+   that a wrong answer does not pass.
+2. **Difficulty in range.** The target model's pass rate is non-zero and moderate; a
+   task that is never solved and one that is always solved are both discarded.
+3. **On target.** It elicits approximately the behaviour the original task elicited,
+   because that behaviour is the reason the task was commissioned.
 
 **Existing evaluations do not reproduce that setting.** Systems that synthesise
 weakness-targeted environments are validated by downstream reinforcement-learning
@@ -88,18 +99,23 @@ Automatic benchmark construction optimises difficulty upwards rather than into a
 range, since its object is an evaluation item. None of these protocols asks the
 question a pipeline asks, which is whether this one artifact is fit to train on.
 
-**AutoDataBench turns those three criteria into one term each.** An episode presents
-one original task together with a sanitised record of the target model attempting
-it, and asks the agent under evaluation to deliver one new task for the same suite.
-An analyst stage reduces the record to a short list of failure modes, each naming a
-behaviour at a decision rather than a fact about the original task; this list is the
-hidden rubric and the agent never sees it. The delivered task is then run against
-the target model under the delivered task's own verifier, and a judge decides mode
-by mode whether the new task placed the target model at that decision, taking the
-new task's transcripts as evidence rather than the appearance of the task. An
-episode's score is the product of a gate over disqualifying defects, a pass-rate
-term, and rubric coverage. The target model is held fixed across every agent
-evaluated, so that scores are comparable.
+**AutoDataBench turns those three criteria into one term each.**
+
+| criterion | term | how it is decided |
+|---|---|---|
+| usable at all | **gate** | a judge checks seven disqualifying defects |
+| difficulty in range | **difficulty** | by execution: the target model attempts the new task K times |
+| on target | **quality** | a judge reads the new task's transcripts against a hidden rubric |
+
+An episode presents one original task together with a sanitised record of the target
+model attempting it, and asks the agent under evaluation to deliver one new task for
+the same suite. An analyst stage reduces that record to a short list of failure
+modes, each naming a behaviour at a decision rather than a fact about the original
+task; this list is the hidden rubric and the agent never sees it. The judge decides
+mode by mode whether the new task placed the target model at that decision, taking
+the new task's transcripts as evidence rather than the appearance of the task. The
+target model is held fixed across every agent evaluated, so that scores are
+comparable.
 
 ## How an episode works
 
@@ -112,7 +128,9 @@ evaluated, so that scores are comparable.
 The code calls the target model the *customer*, and that name appears in paths and
 config keys.
 
-![One episode](docs/figs/episode.png)
+<p align="center">
+  <img src="docs/figs/episode.png" alt="One episode" width="860">
+</p>
 
 The analyst reduces the target model's record of the original task to a hidden
 rubric, which the agent under evaluation never sees. The agent delivers one new
@@ -135,9 +153,9 @@ them, and delivers one task.
 
 ## Scoring
 
-```
-score = gate x difficulty x quality
-```
+<p align="center">
+  <b>score&nbsp; = &nbsp;gate &times; difficulty &times; quality</b>
+</p>
 
 The binary terms multiply rather than add because a task that leaks its answer and
 a task the target model always solves are both unusable whatever their quality.
