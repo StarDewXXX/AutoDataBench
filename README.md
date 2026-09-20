@@ -12,6 +12,13 @@ the single agent under evaluation and holds everything else fixed: the suite, th
 tools, and the check itself. Only the output of the check differs, a score for the
 agent rather than a delivery decision.
 
+![Scores](docs/figs/results.png)
+
+Five agents, each authoring against the same target model on the same 24 original
+tasks. None passes 0.2. The decomposition puts the failure away from targeting:
+rubric coverage is close to saturated, while the pass rate fails at both ends, with
+delivered tasks tending to be solved on every attempt or on none.
+
 ## Quick start
 
 Requires Python 3.11+, Docker, and [harbor](https://github.com/laude-institute/harbor)
