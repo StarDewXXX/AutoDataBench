@@ -36,85 +36,73 @@ delivered tasks tending to be solved on every attempt or on none.
 
 Needs Python 3.11+, Docker, and [harbor](https://github.com/laude-institute/harbor).
 
+Before an episode can run, the target model has to have attempted each original
+task six times, and an analyst has to have turned that record into a rubric. Those
+144 attempts are setup cost, not measurement, so ours are published and you can
+start from them:
+
 ```bash
-export AUTODATABENCH_API_KEY=...        # your gateway key, never written to a config
-export HARBOR_REAL=$(which harbor)
+curl -L -o rollouts.tar.gz \
+  https://huggingface.co/datasets/LordNoah/AutoDataBench/resolve/main/rollouts-deepseek-v4-pro.tar.gz
+tar xzf rollouts.tar.gz
+
+# the rollouts and the rubrics derived from them live in separate trees
+for b in automationbench terminal-bench tb-science; do
+  for t in rollouts-deepseek-v4-pro/$b/*/; do
+    n=$(basename "$t")
+    mkdir -p "prep/deepseek-v4-pro/$b/$n" "rubrics/deepseek-v4-pro/$b/$n"
+    cp -r "$t/rollout"   "prep/deepseek-v4-pro/$b/$n/"
+    cp    "$t/modes.json" "rubrics/deepseek-v4-pro/$b/$n/"
+  done
+done
 ```
 
-Then fill in two placeholders in `configs/default.json` — `gateway.base_url`, the
-endpoint every role reaches its model through, and `sample.source_override`, needed
-only if you resample the benchmark subset.
+Then point `gateway.base_url` in `configs/default.json` at an endpoint that speaks
+the Anthropic Messages API, and:
 
 ```bash
-# prep, once per benchmark
-python3 harness/run_rollout.py --benchmark tb-science    # target model attempts each original
-python3 harness/run_analyst.py --benchmark tb-science    # its record becomes a hidden rubric
+export AUTODATABENCH_API_KEY=...        # never written to a config
+export HARBOR_REAL=$(which harbor)
 
-# the measurement, run as often as you like
 python3 harness/run_episode.py --benchmark tb-science --episodes 3
 python3 harness/aggregate.py   --run-id <run_id>
 ```
 
-Output lands in `runs/<run_id>/<benchmark>/<task>/<ep>/`, one directory per episode,
-with `score.json` at its root.
+Output lands in `runs/<run_id>/<benchmark>/<task>/<ep>/`, one directory per
+episode, with `score.json` at its root.
+
+To evaluate against a different target model, generate your own record instead:
+`run_rollout.py` then `run_analyst.py`. A rubric states one model's failure modes,
+and scoring a delivery against another model's rubric is a quiet, plausible-looking
+error.
 
 ## Why this benchmark
 
-**Capability now follows data.** Recent gains in language model capability have come
-more from data than from architecture, and for agentic reinforcement learning the
-unit of data is not a text pair but a task: an executable environment, a verifier
-that decides whether the work was actually done, and a difficulty suited to the
-model being trained. Producing such tasks is expert work, whether experts author
-them directly or maintain the pipeline that generates them, which still needs their
-judgement to say what a correct artifact looks like. Either way the volume of
-training data is tied to the supply of experts. Automating the step would let
-training data scale with compute instead, and it is an essential link in recursive
-self-improvement: a model that writes the data used to train its successor removes
-the last human from the loop, which leaves the quality of that data as the only
-thing standing between such a loop and its own degradation.
+Recent gains in language model capability have come more from data than from
+architecture, and for agentic reinforcement learning the unit of data is not a text
+pair but a task: an executable environment, a verifier that decides whether the work
+was done, and a difficulty suited to the model being trained. Producing those is
+expert work, so the volume of training data is tied to the supply of experts.
+Automating the step would let training data scale with compute instead, and it is an
+essential link in recursive self-improvement, where a model writes the data used to
+train its successor.
 
-**What a training pipeline requires of synthesised data.** A delivery is accepted
-against criteria set in advance rather than against the outcome of a training run,
-and not only for reasons of cost: the contribution of one task to one training run
-is not separable from the data mixture, the schedule and the base model, so a
-training-based verdict on a single artifact is unavailable in principle. Three
-criteria stand in for it.
-
-1. **Usable at all.** It runs in the suite's own format and is graded by a verifier
-   that a wrong answer does not pass.
-2. **Difficulty in range.** The target model's pass rate is non-zero and moderate; a
-   task that is never solved and one that is always solved are both discarded.
-3. **On target.** It elicits approximately the behaviour the original task elicited,
-   because that behaviour is the reason the task was commissioned.
-
-**Existing evaluations do not reproduce that setting.** Systems that synthesise
-weakness-targeted environments are validated by downstream reinforcement-learning
-gain, which is not a test any pipeline applies to a delivery and cannot separate the
-authored data from the recipe applied to it. Benchmarks of research work either move
-the deliverable, asking for a trained checkpoint rather than for data, or fix the
-target before the run by scoring execution against goals written in advance, where a
-data team is commissioned against a weakness not known until the model has been run.
-Automatic benchmark construction optimises difficulty upwards rather than into a
-range, since its object is an evaluation item. None of these protocols asks the
-question a pipeline asks, which is whether this one artifact is fit to train on.
-
-**AutoDataBench turns those three criteria into one term each.**
+A training pipeline accepts a delivery against criteria set in advance, not against
+the outcome of a training run: one task's contribution is not separable from the
+data mixture, the schedule and the base model, so a training-based verdict on a
+single artifact is unavailable in principle. Three criteria stand in for it, and
+AutoDataBench turns each into one term.
 
 | criterion | term | how it is decided |
 |---|---|---|
 | usable at all | **gate** | a judge checks seven disqualifying defects |
 | difficulty in range | **difficulty** | by execution: the target model attempts the new task K times |
-| on target | **quality** | a judge reads the new task's transcripts against a hidden rubric |
+| elicits the original's behaviour | **quality** | a judge reads the new task's transcripts against a hidden rubric |
 
-An episode presents one original task together with a sanitised record of the target
-model attempting it, and asks the agent under evaluation to deliver one new task for
-the same suite. An analyst stage reduces that record to a short list of failure
-modes, each naming a behaviour at a decision rather than a fact about the original
-task; this list is the hidden rubric and the agent never sees it. The judge decides
-mode by mode whether the new task placed the target model at that decision, taking
-the new task's transcripts as evidence rather than the appearance of the task. The
-target model is held fixed across every agent evaluated, so that scores are
-comparable.
+Existing evaluations of this capability measure it through the model the data
+produces, so no individual artifact is ever judged the way a pipeline would judge
+it. Here the artifact is the unit, and the target model is held fixed across every
+agent evaluated, so scores are comparable.
 
 ## How an episode works
 
@@ -137,15 +125,6 @@ task; the target model then attempts it under that task's own verifier, which fi
 the difficulty term by execution. The judge reads those new transcripts, not the
 task's appearance, and decides the gate and rubric coverage.
 
-```
-  1  sample      N tasks per benchmark, flattened, domain recorded in _meta.json
-  2a rollout     target model attempts each original task K times
-  2b analyse     analyst reads the subset + one task's transcripts -> hidden rubric
-  ------------------------------------------------------------------ prep ends
-  3a synthesize  agent sees the whole subset + ONE task's transcripts -> ONE new task
-  3b score       target model rolls out the new task; judge scores coverage
-```
-
 The agent is given the whole sampled subset read-only, so it can learn the suite's
 format and level from sibling tasks. It sees the transcripts for exactly one of
 them, and delivers one task.
@@ -156,56 +135,42 @@ them, and delivers one task.
   <b>score&nbsp; = &nbsp;gate &times; difficulty &times; quality</b>
 </p>
 
-The binary terms multiply rather than add because a task that leaks its answer and
-a task the target model always solves are both unusable whatever their quality.
+The terms multiply because a task that leaks its answer and a task the target model
+always solves are both unusable whatever their quality.
 
-**gate** (0/1) — the seven defects in `rubrics/gate.md` that make a task unusable.
-The one this exercise turns on is the **surface swap**: the delivered task being the
-original with only its presentation changed, different values and names, the same
+**gate** (0/1) — the seven defects in `rubrics/gate.md`. The one this exercise turns
+on is the **surface swap**: the original with only its presentation changed, the same
 problem retold. Asking for one new task per original makes cloning the obvious
-shortcut, so the gate names it explicitly. What it does *not* forbid is staying in
-the original's problem family or turning on the same decision — that is what
-targeting a failure mode means. The line is whether a solver of the original would
-still have something to work out.
+shortcut. What the gate does *not* forbid is staying in the original's problem family
+or turning on the same decision — that is what targeting a failure mode means. The
+line is whether a solver of the original would still have something to work out.
 
-**difficulty** (0/1) — the target model attempts the delivered task K times, graded
-by the task's own verifier. 1 when the solved rate lands inside
-`[band_lo, band_hi]`. A task the target always solves and one it never solves are
-both useless as training data.
+Before the judge sees anything, the harness writes a mechanical word-level diff of
+the two instructions. If every differing span is a renaming, the gate fires and no
+amount of same-family reasoning overrides it.
 
-**quality** ([0,1], judge) — coverage of the hidden rubric, judged from the **new
-task's own transcripts**, not from how the new task looks. Per mode the judge
-answers one yes-or-no question: did the new task exercise this mode. A mode is
-`present` (the transcripts show the model at that decision; attempt, step and quote
-required), `absent`, or `unreachable` (setup died before the stage was reached,
-excluded from both numerator and denominator).
+**difficulty** (0/1) — the target model attempts the delivered task K times under
+that task's own verifier. 1 when the solve rate lands inside `[band_lo, band_hi]`.
+A task always solved and a task never solved are equally useless as training data.
 
-The score is not the raw fraction. A coverage target `a` counts as full marks:
+**quality** ([0,1]) — coverage of a hidden rubric the agent never sees, judged from
+the **new task's transcripts** rather than from how the task reads. Per mode the
+judge answers one question: did the new task put the target model at this decision?
+It must cite an attempt, a step and a quote to answer yes.
 
-    quality = min(1, covered / ceil(a * scoreable_modes))
+The score is not the raw fraction. With `N` scoreable modes and a coverage target
+`a`, `quality = min(1, covered / ceil(a * N))`, so at the default `a = 0.6` three
+modes of five earn full marks. Full coverage is the wrong thing to ask for: one new
+task cannot stage every mode of the task it came from without being that task. The
+judge is never told `a`.
 
-At the default `a = 0.6`, three modes of a five-mode rubric score 1.0. One new task
-cannot stage every mode of the task it was built from without being that task. The
-judge is never told `a`: it answers per mode and the arithmetic stays in the
-harness, because a judge that knew it only needed `a*N` modes would have a reason to
-stop looking.
+Format is also measured, and recorded in `score.json`, but does not enter the score:
+across in-band deliveries it concentrates between 0.75 and 1.0, too narrow to
+separate agents, and a delivery that fails those checks badly enough is caught by the
+gate instead.
 
-The judge also records what the model did at each present mode — failed, detoured,
-handled, or mixed. That is kept for analysis and does not move the score: whether
-the model then fails is what the difficulty term measures.
-
-**format** ([0,1], judge) — mean of the eight checks in `rubrics/format.md`.
-Measured and recorded in `score.json`, but **not scored**. Across in-band deliveries
-it concentrates between 0.75 and 1.0, too narrow at any sensible weight to separate
-agents; recomputing every score without it moved each agent by at most 0.007 and
-changed no ordering. A delivery that fails the checks badly enough is unusable and
-the gate catches it, which is a sharper instrument for the same concern. What the
-term measured was hygiene among deliveries that were already well formed, and a task
-can pass all eight checks and still be worthless.
-
-`aggregate.py` averages episodes per original task first, then tasks into a
-benchmark score, so a task that happened to get more repeats does not weigh more.
-The spread across repeats is printed next to every mean.
+`aggregate.py` averages episodes per original task first, then tasks into a benchmark
+score, so a task that happened to get more repeats does not weigh more.
 
 ## Configuration
 
