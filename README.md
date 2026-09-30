@@ -5,7 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://stardewxxx.github.io/blog/autodatabench.html">Blog</a> &nbsp;·&nbsp;
+  <a href="https://autodatabench.com/">Project Page</a> &nbsp;·&nbsp;
+  <a href="https://autodatabench.com/blog.html">Blog</a> &nbsp;·&nbsp;
   <a href="#quick-start">Quick start</a> &nbsp;·&nbsp;
   <a href="#why-this-benchmark">Why</a> &nbsp;·&nbsp;
   <a href="#how-an-episode-works">How it works</a> &nbsp;·&nbsp;
